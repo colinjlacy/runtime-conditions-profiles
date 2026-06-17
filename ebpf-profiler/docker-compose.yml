@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  ebpf-profiler:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    privileged: true
+    pid: host
+    network_mode: host
+    environment:
+      - OUTPUT_PATH=/output/ebpf_http_profiler.log
+      - ENV_OUTPUT_PATH=/output/ebpf_http_env.yaml
+      - SERVICE_MAP_PATH=/output/ebpf_service_map.yaml
+      - ADI_PROFILE_ALLOWED=local,dev
+      - CONTAINERD_SOCKET=/var/run/docker.sock
+      - CONTAINERD_NAMESPACE=default
+    volumes:
+      - ./output:/output
+      - /sys/kernel/debug:/sys/kernel/debug
+      - /sys/fs/bpf:/sys/fs/bpf
+      - /var/run/docker.sock:/var/run/docker.sock

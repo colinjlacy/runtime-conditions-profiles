@@ -1,8 +1,10 @@
-output/*
-!output/.gitkeep
-pkg/profiler/profiler_bpf*
+ebpf-profiler/output/*
+!ebpf-profiler/output/.gitkeep
+ebpf-profiler/pkg/profiler/profiler_bpf*
 .DS_Store
 .idea/
+__pycache__/
+*.pyc
 # profiler
 server
 traffic

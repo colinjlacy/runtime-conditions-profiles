@@ -1,9 +1,6 @@
 go 1.25.0
 
 use (
-	.
-	./cmd/request-logger
-	./cmd/profiler
-	./cmd/server
-	./cmd/traffic
+	./ebpf-profiler
+	./go
 )
