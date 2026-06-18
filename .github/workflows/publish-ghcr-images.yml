@@ -1,0 +1,80 @@
+name: Publish GHCR Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-ghcr-images.yml"
+      - "platform/kratix/promises/redis/pipeline/**"
+      - "platform/kratix/promises/runtime-workload/pipeline/**"
+      - "platform/demo/provider/todos-api/**"
+      - "go/apps/request-logger-http/**"
+      - "go/runtimeconditions/**"
+      - "go/go.mod"
+      - "go/go.sum"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.image.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - name: redis-pipeline
+            context: platform/kratix/promises/redis/pipeline
+            file: platform/kratix/promises/redis/pipeline/Dockerfile
+          - name: runtime-workload-pipeline
+            context: platform/kratix/promises/runtime-workload/pipeline
+            file: platform/kratix/promises/runtime-workload/pipeline/Dockerfile
+          - name: todos-api
+            context: platform/demo/provider/todos-api
+            file: platform/demo/provider/todos-api/Dockerfile
+          - name: request-logger
+            context: go
+            file: go/apps/request-logger-http/Dockerfile
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Resolve image name
+        id: image
+        shell: bash
+        run: |
+          owner="$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          repo="$(printf '%s' '${{ github.event.repository.name }}' | tr '[:upper:]' '[:lower:]')"
+          echo "name=ghcr.io/${owner}/${repo}-${{ matrix.image.name }}" >>"${GITHUB_OUTPUT}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.file }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}

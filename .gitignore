@@ -5,6 +5,13 @@ ebpf-profiler/pkg/profiler/profiler_bpf*
 .idea/
 __pycache__/
 *.pyc
+platform/.build/
+platform/.env.generated
 # profiler
 server
 traffic
+
+**/*/.terraform*
+**/*/terraform.tfstate*
+**/*/plan
+kubeconfig

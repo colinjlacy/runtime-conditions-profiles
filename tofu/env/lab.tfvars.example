@@ -1,0 +1,40 @@
+# Proxmox Configuration
+proxmox_endpoint    = "https://192.168.0.37:8006"
+proxmox_username    = "root@pam"
+proxmox_password    = "your-password-here"
+proxmox_insecure    = true
+proxmox_node        = "nuc"
+
+
+# Storage and Network
+vm_storage          = "local-lvm"
+vm_network_bridge   = "vmbr0"
+vm_disk_size_gb     = 60
+gpu_vm_disk_size_gb = 60
+
+# Cluster Configuration
+name_prefix         = "k3s"
+k3s_version         = "v1.35.0+k3s1"
+
+# SSH Access
+# Fetch your SSH key from GitHub: https://github.com/<your_github_user>.keys
+ssh_public_keys = [
+  "ssh-ed25519 AAAAC3... your-key-here"
+]
+
+# GPU Configuration
+gpu_pci_id          = "0000:01:00.0"
+# https://www.nvidia.com/en-gb/geforce/drivers/
+nvidia_driver_version = "580"
+
+# Node Sizing
+server_cores        = 4
+server_memory_mb    = 4096
+
+worker_cores        = 2
+worker_memory_mb    = 4096
+worker_count        = 2
+
+gpu_worker_cores    = 6
+gpu_worker_memory_mb = 16384
+

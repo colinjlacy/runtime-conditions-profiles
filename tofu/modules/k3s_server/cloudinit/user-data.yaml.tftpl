@@ -1,0 +1,62 @@
+#cloud-config
+hostname: ${hostname}
+package_update: true
+package_upgrade: false
+
+packages:
+  - qemu-guest-agent
+
+# Set ubuntu user password for console access
+chpasswd:
+  list: |
+    ubuntu:${ubuntu_password}
+  expire: false
+
+# Set SSH authorized keys
+ssh_authorized_keys:
+%{ for key in ssh_public_keys ~}
+  - ${key}
+%{ endfor ~}
+
+write_files:
+  - path: /usr/local/bin/bootstrap-k3s-server.sh
+    permissions: "0755"
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      echo "[$(date)] Starting K3s server bootstrap"
+
+      # Wait for network
+      until ping -c1 8.8.8.8 &>/dev/null; do
+        echo "[$(date)] Waiting for network..."
+        sleep 2
+      done
+
+      # Install K3s server with pre-generated token.
+      # Flannel, the built-in network policy controller, ServiceLB, and Traefik
+      # are disabled so that Cilium can provide CNI, network policy, and
+      # LoadBalancer functionality.
+      curl -sfL https://get.k3s.io | \
+        INSTALL_K3S_VERSION="${k3s_version}" \
+        sh -s - server \
+        --token="${k3s_token}" \
+        --write-kubeconfig-mode 0644 \
+        --flannel-backend=none \
+        --disable-network-policy \
+        --disable=traefik \
+        --disable=servicelb
+
+      # Wait for K3s to be ready
+      until kubectl get nodes &>/dev/null; do
+        echo "[$(date)] Waiting for K3s to be ready..."
+        sleep 5
+      done
+
+      echo "[$(date)] K3s server bootstrap complete"
+      touch /var/lib/bootstrap-k3s-server.ok
+
+runcmd:
+  - [ systemctl, enable, --now, qemu-guest-agent ]
+  - [ bash, -lc, "/usr/local/bin/bootstrap-k3s-server.sh > /var/log/bootstrap-k3s-server.log 2>&1" ]
+

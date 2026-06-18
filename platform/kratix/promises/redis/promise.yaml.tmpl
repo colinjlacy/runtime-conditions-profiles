@@ -1,0 +1,47 @@
+apiVersion: platform.kratix.io/v1alpha1
+kind: Promise
+metadata:
+  name: redis
+  labels:
+    kratix.io/promise-version: v0.1.0
+spec:
+  api:
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+      name: redis.runtimeconditions.io
+    spec:
+      group: runtimeconditions.io
+      names:
+        kind: Redis
+        plural: redis
+        singular: redis
+      scope: Namespaced
+      versions:
+        - name: v1alpha1
+          served: true
+          storage: true
+          subresources:
+            status: {}
+          schema:
+            openAPIV3Schema:
+              type: object
+              properties:
+                spec:
+                  type: object
+                  properties:
+                    size:
+                      type: string
+                      default: small
+  workflows:
+    resource:
+      configure:
+        - apiVersion: platform.kratix.io/v1alpha1
+          kind: Pipeline
+          metadata:
+            name: configure-redis
+          spec:
+            containers:
+              - name: configure
+                image: __REDIS_PIPELINE_IMAGE__
+
