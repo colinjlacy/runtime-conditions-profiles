@@ -9,11 +9,14 @@ require_kubectl_context
 
 KRATIX_INSTALLER_URL="${KRATIX_INSTALLER_URL:-https://github.com/syntasso/kratix/releases/download/latest/kratix-quick-start-installer.yaml}"
 
+log "Ensure Kratix namespace exists"
+kubectl create namespace kratix-platform-system --dry-run=client -o yaml | kubectl apply -f -
+
 log "Installing Kratix quick-start stack"
 kubectl apply -f "${KRATIX_INSTALLER_URL}"
 
 log "Waiting for quick-start installer job"
-kubectl -n kratix-platform-system wait --for=condition=complete job/kratix-quick-start-installer --timeout=10m
+kubectl -n default wait --for=condition=complete job/kratix-quick-start-installer --timeout=10m
 
 log "Waiting for Kratix platform controller"
 kubectl -n kratix-platform-system rollout status deployment/kratix-platform-controller-manager --timeout=5m

@@ -23,12 +23,13 @@ type Todo struct {
 	Completed bool   `json:"completed"`
 }
 
-var _ = rc.API("todos-api",
-	rc.Spec("openapi", "catalog://api/default/todos-api", "1.0.0"),
-	rc.GET("/todos/{id}", rc.Response[Todo]()),
-)
-
-var _ = rc.Cache("request-cache", rc.KeyValue(rc.Redis))
+func init() {
+	rc.API("todos-api",
+		rc.Spec("openapi", "catalog://api/default/todos-api", "1.0.0"),
+		rc.GET("/todos/{id}", rc.Response[Todo]()),
+	)
+	rc.Cache("request-cache", rc.KeyValue(rc.Redis))
+}
 
 func main() {
 	mux := http.NewServeMux()
@@ -171,4 +172,3 @@ func envOrDefault(key, fallback string) string {
 	}
 	return value
 }
-
