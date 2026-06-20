@@ -17,6 +17,7 @@ func main() {
 	name := flag.String("name", "", "profile metadata.name")
 	workloadURI := flag.String("workload-uri", "", "workload.uri")
 	workloadVersion := flag.String("workload-version", "dev", "workload.version")
+	extensionsRoot := flag.String("extensions-root", "", "directory containing extension binding manifests; package manifests are discovered from direct imports")
 	out := flag.String("out", "", "output file path; defaults to stdout")
 	flag.Parse()
 
@@ -39,6 +40,7 @@ func main() {
 		Name:            profileName,
 		WorkloadURI:     uri,
 		WorkloadVersion: *workloadVersion,
+		ExtensionRoots:  splitList(*extensionsRoot),
 	})
 	if err != nil {
 		exitErr(err)
@@ -57,6 +59,21 @@ func main() {
 	if err != nil {
 		exitErr(err)
 	}
+}
+
+func splitList(value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
 }
 
 func modulePath(dir string) string {

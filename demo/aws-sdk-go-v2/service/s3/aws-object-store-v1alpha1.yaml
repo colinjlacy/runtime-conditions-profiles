@@ -1,0 +1,58 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://aws.example.com/runtimeconditions/object-store
+  version: v1alpha1
+
+spec:
+  dependencies:
+    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+
+  kinds:
+    - name: aws.object_store
+
+  interfaceTypes:
+    - name: aws.s3
+      targetKind: aws.object_store
+
+  interfaceFields:
+    - name: bucketClass
+      targetKind: aws.object_store
+      targetType: aws.s3
+
+  fieldValues:
+    - field: interface.bucketClass
+      targetKind: aws.object_store
+      targetType: aws.s3
+      values:
+        - standard
+        - archive
+
+  schemas:
+    - id: aws-s3-interface
+      appliesToKind: aws.object_store
+      appliesToInterfaceType: aws.s3
+      description: Validates the aws.s3 interface shape.
+      schema:
+        $schema: https://json-schema.org/draft/2020-12/schema
+        type: object
+        required:
+          - kind
+          - interface
+        properties:
+          kind:
+            const: aws.object_store
+          interface:
+            type: object
+            required:
+              - type
+            properties:
+              type:
+                const: aws.s3
+              bucketClass:
+                enum:
+                  - standard
+                  - archive
+            additionalProperties: true
+        additionalProperties: true

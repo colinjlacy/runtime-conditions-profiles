@@ -15,6 +15,7 @@ import (
 	"time"
 
 	rc "github.com/colinjlacy/golang-ast-inspection/go/runtimeconditions"
+	"github.com/colinjlacy/golang-http-profiler/demo/aws-sdk-go-v2/service/s3"
 )
 
 type Todo struct {
@@ -65,10 +66,11 @@ func demoHandler(w http.ResponseWriter, r *http.Request) {
 	result := map[string]string{
 		"todosApi": statusString(checkTodosAPI(ctx)),
 		"cache":    statusString(checkRedis(ctx)),
+		"auditLog": statusString(writeAuditLog(ctx, "request-logger demo")),
 	}
 
 	status := http.StatusOK
-	if result["todosApi"] != "ok" || result["cache"] != "ok" {
+	if result["todosApi"] != "ok" || result["cache"] != "ok" || result["auditLog"] != "ok" {
 		status = http.StatusBadGateway
 	}
 
@@ -106,6 +108,20 @@ func checkTodosAPI(ctx context.Context) error {
 		return errors.New("todos-api response was incomplete")
 	}
 	return nil
+}
+
+func writeAuditLog(ctx context.Context, event string) error {
+	client := s3.NewFromConfig(s3.Config{})
+	_, err := client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: stringPtr(envOrDefault("AUDIT_LOG_BUCKET", "demo-audit-log")),
+		Key:    stringPtr("request-logger/demo.json"),
+		Body:   strings.NewReader(event),
+	})
+	return err
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 func checkRedis(ctx context.Context) error {

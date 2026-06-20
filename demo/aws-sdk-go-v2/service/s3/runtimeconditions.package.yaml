@@ -1,0 +1,28 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsPackage
+
+metadata:
+  package: github.com/colinjlacy/golang-http-profiler/demo/aws-sdk-go-v2/service/s3
+  language: go
+
+extension:
+  id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
+  definition: aws-object-store-v1alpha1.yaml
+
+go:
+  importPath: github.com/colinjlacy/golang-http-profiler/demo/aws-sdk-go-v2/service/s3
+  package: s3
+
+  constructors:
+    - function: NewFromConfig
+      receiver: Client
+
+  declarations:
+    - receiver: Client
+      method: PutObject
+      name: s3-object-store
+      kind: aws.object_store
+      interfaceType: aws.s3
+      values:
+        - target: interface.bucketClass
+          value: standard

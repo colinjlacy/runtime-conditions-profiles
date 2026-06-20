@@ -6,19 +6,22 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
 	// DeclarationImportPath is the Go import path that this extractor recognizes.
 	DeclarationImportPath = "github.com/colinjlacy/golang-ast-inspection/go/runtimeconditions"
 
-	coreExtension       = "core"
-	messageBusExtension = "runtimeconditions.io/message-bus/v1alpha1"
+	commonIntegrationsExtension = "https://runtimeconditions.io/extensions/common-integrations:v1alpha1"
+	messageBusExtension         = "runtimeconditions.io/message-bus/v1alpha1"
 )
 
 // Options configures source extraction and the generated profile metadata.
@@ -26,6 +29,7 @@ type Options struct {
 	Name            string
 	WorkloadURI     string
 	WorkloadVersion string
+	ExtensionRoots  []string
 }
 
 // RuntimeConditionsProfile is the YAML shape emitted by the declarative source
@@ -56,11 +60,12 @@ type Condition struct {
 }
 
 type Interface struct {
-	Type       string      `yaml:"type"`
-	Engine     string      `yaml:"engine,omitempty"`
-	Spec       *APISpec    `yaml:"spec,omitempty"`
-	Operations []Operation `yaml:"operations,omitempty"`
-	Subjects   []Subject   `yaml:"subjects,omitempty"`
+	Type        string      `yaml:"type"`
+	Engine      string      `yaml:"engine,omitempty"`
+	BucketClass string      `yaml:"bucketClass,omitempty"`
+	Spec        *APISpec    `yaml:"spec,omitempty"`
+	Operations  []Operation `yaml:"operations,omitempty"`
+	Subjects    []Subject   `yaml:"subjects,omitempty"`
 }
 
 type APISpec struct {
@@ -97,6 +102,83 @@ type importSet struct {
 	dot     bool
 }
 
+type goBinding struct {
+	ExtensionID             string
+	ExtensionDefinitionPath string
+	ImportPath              string
+	PackageName             string
+	Constants               map[string]string
+	Constructors            []goBindingConstructor
+	Declarations            []goBindingDeclaration
+}
+
+type goBindingConstructor struct {
+	Function string `yaml:"function"`
+	Receiver string `yaml:"receiver"`
+}
+
+type goBindingDeclaration struct {
+	Function      string            `yaml:"function"`
+	Receiver      string            `yaml:"receiver"`
+	Method        string            `yaml:"method"`
+	Name          string            `yaml:"name"`
+	Kind          string            `yaml:"kind"`
+	InterfaceType string            `yaml:"interfaceType"`
+	NameArg       *int              `yaml:"nameArg"`
+	Values        []goBindingValue  `yaml:"values"`
+	Options       []goBindingOption `yaml:"options"`
+}
+
+type goBindingValue struct {
+	Target string `yaml:"target"`
+	Value  string `yaml:"value"`
+}
+
+type goBindingOption struct {
+	Function string `yaml:"function"`
+	Target   string `yaml:"target"`
+	ValueArg int    `yaml:"valueArg"`
+}
+
+type goBindingImports struct {
+	aliases      map[string]*goBinding
+	dot          []*goBinding
+	receiverVars map[string]goBindingReceiver
+}
+
+type goBindingReceiver struct {
+	binding  *goBinding
+	receiver string
+}
+
+type goBindingDocument struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Extension           string `yaml:"extension"`
+		ExtensionDefinition string `yaml:"extensionDefinition"`
+		Package             string `yaml:"package"`
+		Language            string `yaml:"language"`
+	} `yaml:"metadata"`
+	Extension struct {
+		ID         string `yaml:"id"`
+		Definition string `yaml:"definition"`
+	} `yaml:"extension"`
+	Go struct {
+		ImportPath   string                 `yaml:"importPath"`
+		Package      string                 `yaml:"package"`
+		Constants    map[string]string      `yaml:"constants"`
+		Constructors []goBindingConstructor `yaml:"constructors"`
+		Declarations []goBindingDeclaration `yaml:"declarations"`
+	} `yaml:"go"`
+}
+
+type goModule struct {
+	path     string
+	dir      string
+	replaces map[string]string
+}
+
 type extractor struct {
 	fset  *token.FileSet
 	scope *packageScope
@@ -116,6 +198,15 @@ func ExtractDir(dir string, opts Options) (*RuntimeConditionsProfile, error) {
 	if err != nil {
 		return nil, err
 	}
+	packageBindings, err := discoverGoPackageBindings(absDir, files)
+	if err != nil {
+		return nil, err
+	}
+	bindings, err := discoverGoBindings(opts.ExtensionRoots)
+	if err != nil {
+		return nil, err
+	}
+	bindings = append(bindings, packageBindings...)
 
 	scope := &packageScope{
 		structs:      make(map[string]*ast.StructType),
@@ -126,12 +217,13 @@ func ExtractDir(dir string, opts Options) (*RuntimeConditionsProfile, error) {
 	}
 
 	e := &extractor{fset: fset, scope: scope}
-	extensions := map[string]bool{coreExtension: true}
+	extensions := make(map[string]bool)
 	var conditions []Condition
 
 	for _, parsed := range files {
 		imports := runtimeConditionImports(parsed.file)
-		if len(imports.aliases) == 0 && !imports.dot {
+		bindingImports := runtimeConditionBindingImports(parsed.file, bindings)
+		if len(imports.aliases) == 0 && !imports.dot && len(bindingImports.aliases) == 0 && len(bindingImports.dot) == 0 {
 			continue
 		}
 
@@ -145,31 +237,51 @@ func ExtractDir(dir string, opts Options) (*RuntimeConditionsProfile, error) {
 				return true
 			}
 			name, _, ok := callNameAndTypeArgs(call, imports)
+			if ok {
+				var condition Condition
+				var err error
+				switch name {
+				case "API":
+					condition, err = e.parseAPI(call, imports)
+					if err == nil {
+						extensions[commonIntegrationsExtension] = true
+					}
+				case "Datastore":
+					condition, err = e.parseDatastore(call, imports)
+					if err == nil {
+						extensions[commonIntegrationsExtension] = true
+					}
+				case "Cache":
+					condition, err = e.parseCache(call, imports)
+					if err == nil {
+						extensions[commonIntegrationsExtension] = true
+					}
+				case "MessageBus":
+					condition, err = e.parseMessageBus(call, imports)
+					if err == nil {
+						extensions[messageBusExtension] = true
+					}
+				default:
+					return true
+				}
+				if err != nil {
+					walkErr = e.nodeError(call, err)
+					return false
+				}
+				conditions = append(conditions, condition)
+				return false
+			}
+
+			binding, declaration, ok := bindingDeclarationForCall(call, bindingImports)
 			if !ok {
 				return true
 			}
-
-			var condition Condition
-			var err error
-			switch name {
-			case "API":
-				condition, err = e.parseAPI(call, imports)
-			case "Datastore":
-				condition, err = e.parseDatastore(call, imports)
-			case "Cache":
-				condition, err = e.parseCache(call, imports)
-			case "MessageBus":
-				condition, err = e.parseMessageBus(call, imports)
-				if err == nil {
-					extensions[messageBusExtension] = true
-				}
-			default:
-				return true
-			}
+			condition, err := e.parseBindingCondition(call, binding, declaration, bindingImports)
 			if err != nil {
 				walkErr = e.nodeError(call, err)
 				return false
 			}
+			extensions[binding.ExtensionID] = true
 			conditions = append(conditions, condition)
 			return false
 		})
@@ -191,6 +303,259 @@ func ExtractDir(dir string, opts Options) (*RuntimeConditionsProfile, error) {
 		Extensions: sortedExtensions(extensions),
 		Conditions: conditions,
 	}, nil
+}
+
+func discoverGoBindings(roots []string) ([]*goBinding, error) {
+	var bindings []*goBinding
+	for _, root := range roots {
+		if strings.TrimSpace(root) == "" {
+			continue
+		}
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			return nil, err
+		}
+		err = filepath.WalkDir(absRoot, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				switch d.Name() {
+				case ".git", "vendor", "node_modules":
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if d.Name() != "runtimeconditions.binding.yaml" {
+				return nil
+			}
+			binding, err := readGoBinding(path)
+			if err != nil {
+				return err
+			}
+			bindings = append(bindings, binding)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return bindings, nil
+}
+
+func discoverGoPackageBindings(sourceDir string, files []parsedFile) ([]*goBinding, error) {
+	module, err := readGoModule(sourceDir)
+	if err != nil {
+		return nil, err
+	}
+	if module == nil {
+		return nil, nil
+	}
+
+	var bindings []*goBinding
+	seen := make(map[string]bool)
+	for _, importPath := range directImportPaths(files) {
+		packageDir := module.resolveImport(importPath)
+		if packageDir == "" {
+			continue
+		}
+		manifestPath := filepath.Join(packageDir, "runtimeconditions.package.yaml")
+		if seen[manifestPath] {
+			continue
+		}
+		seen[manifestPath] = true
+		if _, err := os.Stat(manifestPath); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		binding, err := readGoBinding(manifestPath)
+		if err != nil {
+			return nil, err
+		}
+		bindings = append(bindings, binding)
+	}
+	return bindings, nil
+}
+
+func readGoBinding(path string) (*goBinding, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var document goBindingDocument
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if document.Kind != "RuntimeConditionsGoBinding" && document.Kind != "RuntimeConditionsPackage" {
+		return nil, fmt.Errorf("%s: unsupported binding kind %q", path, document.Kind)
+	}
+
+	extensionID := document.Metadata.Extension
+	extensionDefinition := document.Metadata.ExtensionDefinition
+	if document.Kind == "RuntimeConditionsPackage" {
+		extensionID = document.Extension.ID
+		extensionDefinition = document.Extension.Definition
+	}
+
+	if extensionID == "" {
+		return nil, fmt.Errorf("%s: metadata.extension is required", path)
+	}
+	if document.Go.ImportPath == "" {
+		return nil, fmt.Errorf("%s: go.importPath is required", path)
+	}
+	if len(document.Go.Declarations) == 0 {
+		return nil, fmt.Errorf("%s: go.declarations must not be empty", path)
+	}
+	definitionPath := extensionDefinition
+	if definitionPath != "" && !filepath.IsAbs(definitionPath) {
+		definitionPath = filepath.Join(filepath.Dir(path), definitionPath)
+	}
+	if definitionPath != "" {
+		if _, err := os.Stat(definitionPath); err != nil {
+			return nil, fmt.Errorf("%s: extension definition %q: %w", path, definitionPath, err)
+		}
+	}
+	return &goBinding{
+		ExtensionID:             extensionID,
+		ExtensionDefinitionPath: definitionPath,
+		ImportPath:              document.Go.ImportPath,
+		PackageName:             document.Go.Package,
+		Constants:               document.Go.Constants,
+		Constructors:            document.Go.Constructors,
+		Declarations:            document.Go.Declarations,
+	}, nil
+}
+
+func directImportPaths(files []parsedFile) []string {
+	seen := make(map[string]bool)
+	for _, parsed := range files {
+		for _, spec := range parsed.file.Imports {
+			pathValue, err := strconv.Unquote(spec.Path.Value)
+			if err == nil {
+				seen[pathValue] = true
+			}
+		}
+	}
+	result := make([]string, 0, len(seen))
+	for pathValue := range seen {
+		result = append(result, pathValue)
+	}
+	slices.Sort(result)
+	return result
+}
+
+func readGoModule(sourceDir string) (*goModule, error) {
+	for current := sourceDir; ; current = filepath.Dir(current) {
+		modPath := filepath.Join(current, "go.mod")
+		module, err := parseGoMod(modPath)
+		if err == nil {
+			module.dir = current
+			return module, nil
+		}
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return nil, nil
+		}
+	}
+}
+
+func parseGoMod(path string) (*goModule, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	module := &goModule{replaces: make(map[string]string)}
+	inReplaceBlock := false
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(stripGoModComment(rawLine))
+		if line == "" {
+			continue
+		}
+		if inReplaceBlock {
+			if line == ")" {
+				inReplaceBlock = false
+				continue
+			}
+			parseReplaceLine(line, module.replaces)
+			continue
+		}
+		if strings.HasPrefix(line, "module ") {
+			module.path = strings.TrimSpace(strings.TrimPrefix(line, "module "))
+			continue
+		}
+		if line == "replace (" {
+			inReplaceBlock = true
+			continue
+		}
+		if strings.HasPrefix(line, "replace ") {
+			parseReplaceLine(strings.TrimSpace(strings.TrimPrefix(line, "replace ")), module.replaces)
+		}
+	}
+	if module.path == "" {
+		return nil, fmt.Errorf("%s: module path is required", path)
+	}
+	return module, nil
+}
+
+func stripGoModComment(line string) string {
+	if index := strings.Index(line, "//"); index >= 0 {
+		return line[:index]
+	}
+	return line
+}
+
+func parseReplaceLine(line string, replaces map[string]string) {
+	fields := strings.Fields(line)
+	for i, field := range fields {
+		if field != "=>" || i == 0 || i+1 >= len(fields) {
+			continue
+		}
+		replaces[fields[i-1]] = fields[i+1]
+		return
+	}
+}
+
+func (m *goModule) resolveImport(importPath string) string {
+	type candidate struct {
+		modulePath string
+		dir        string
+	}
+	candidates := []candidate{{modulePath: m.path, dir: m.dir}}
+	for modulePath, replacement := range m.replaces {
+		if !isLocalReplacement(replacement) {
+			continue
+		}
+		dir := replacement
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(m.dir, dir)
+		}
+		candidates = append(candidates, candidate{modulePath: modulePath, dir: filepath.Clean(dir)})
+	}
+
+	var best candidate
+	for _, item := range candidates {
+		if importPath != item.modulePath && !strings.HasPrefix(importPath, item.modulePath+"/") {
+			continue
+		}
+		if len(item.modulePath) > len(best.modulePath) {
+			best = item
+		}
+	}
+	if best.modulePath == "" {
+		return ""
+	}
+	suffix := strings.TrimPrefix(importPath, best.modulePath)
+	suffix = strings.TrimPrefix(suffix, "/")
+	return filepath.Join(best.dir, filepath.FromSlash(suffix))
+}
+
+func isLocalReplacement(path string) bool {
+	return filepath.IsAbs(path) || strings.HasPrefix(path, ".")
 }
 
 func parseGoFiles(fset *token.FileSet, root string) ([]parsedFile, error) {
@@ -279,6 +644,44 @@ func runtimeConditionImports(file *ast.File) importSet {
 	return imports
 }
 
+func runtimeConditionBindingImports(file *ast.File, bindings []*goBinding) goBindingImports {
+	imports := goBindingImports{
+		aliases:      make(map[string]*goBinding),
+		receiverVars: make(map[string]goBindingReceiver),
+	}
+	bindingsByImport := make(map[string]*goBinding, len(bindings))
+	for _, binding := range bindings {
+		bindingsByImport[binding.ImportPath] = binding
+	}
+
+	for _, spec := range file.Imports {
+		pathValue, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		binding := bindingsByImport[pathValue]
+		if binding == nil {
+			continue
+		}
+		if spec.Name == nil {
+			if binding.PackageName != "" {
+				imports.aliases[binding.PackageName] = binding
+			}
+			continue
+		}
+		switch spec.Name.Name {
+		case ".":
+			imports.dot = append(imports.dot, binding)
+		case "_":
+			continue
+		default:
+			imports.aliases[spec.Name.Name] = binding
+		}
+	}
+	imports.collectReceiverVars(file)
+	return imports
+}
+
 func callNameAndTypeArgs(call *ast.CallExpr, imports importSet) (string, []ast.Expr, bool) {
 	fun := unparen(call.Fun)
 	var typeArgs []ast.Expr
@@ -309,6 +712,284 @@ resolved:
 		}
 	}
 	return "", nil, false
+}
+
+func bindingDeclarationForCall(call *ast.CallExpr, imports goBindingImports) (*goBinding, goBindingDeclaration, bool) {
+	name, binding, ok := callNameAndBinding(call, imports)
+	if ok {
+		for _, declaration := range binding.Declarations {
+			if declaration.Function == name {
+				return binding, declaration, true
+			}
+		}
+	}
+
+	name, receiver, ok := receiverMethodNameAndBinding(call, imports)
+	if ok {
+		for _, declaration := range receiver.binding.Declarations {
+			if declaration.Method == name && (declaration.Receiver == "" || declaration.Receiver == receiver.receiver) {
+				return receiver.binding, declaration, true
+			}
+		}
+	}
+
+	return nil, goBindingDeclaration{}, false
+}
+
+func (imports goBindingImports) collectReceiverVars(file *ast.File) {
+	ast.Inspect(file, func(node ast.Node) bool {
+		switch typed := node.(type) {
+		case *ast.AssignStmt:
+			for i, rhs := range typed.Rhs {
+				if i >= len(typed.Lhs) {
+					continue
+				}
+				name, ok := typed.Lhs[i].(*ast.Ident)
+				if !ok {
+					continue
+				}
+				imports.collectReceiverVar(name.Name, rhs)
+			}
+		case *ast.ValueSpec:
+			for i, value := range typed.Values {
+				if i >= len(typed.Names) {
+					continue
+				}
+				imports.collectReceiverVar(typed.Names[i].Name, value)
+			}
+		}
+		return true
+	})
+}
+
+func (imports goBindingImports) collectReceiverVar(name string, expr ast.Expr) {
+	call, ok := unparen(expr).(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	binding, receiver, ok := bindingConstructorForCall(call, imports)
+	if ok {
+		imports.receiverVars[name] = goBindingReceiver{binding: binding, receiver: receiver}
+	}
+}
+
+func bindingConstructorForCall(call *ast.CallExpr, imports goBindingImports) (*goBinding, string, bool) {
+	name, binding, ok := callNameAndBinding(call, imports)
+	if !ok {
+		return nil, "", false
+	}
+	for _, constructor := range binding.Constructors {
+		if constructor.Function == name {
+			return binding, constructor.Receiver, true
+		}
+	}
+	return nil, "", false
+}
+
+func bindingOptionForCall(call *ast.CallExpr, imports goBindingImports, binding *goBinding, declaration goBindingDeclaration) (goBindingOption, bool) {
+	name, optionBinding, ok := callNameAndBinding(call, imports)
+	if !ok || optionBinding != binding {
+		return goBindingOption{}, false
+	}
+	for _, option := range declaration.Options {
+		if option.Function == name {
+			return option, true
+		}
+	}
+	return goBindingOption{}, false
+}
+
+func callNameAndBinding(call *ast.CallExpr, imports goBindingImports) (string, *goBinding, bool) {
+	fun := unparen(call.Fun)
+	for {
+		switch typed := fun.(type) {
+		case *ast.IndexExpr:
+			fun = unparen(typed.X)
+		case *ast.IndexListExpr:
+			fun = unparen(typed.X)
+		default:
+			goto resolved
+		}
+	}
+
+resolved:
+	switch expr := fun.(type) {
+	case *ast.SelectorExpr:
+		ident, ok := unparen(expr.X).(*ast.Ident)
+		if !ok {
+			return "", nil, false
+		}
+		binding := imports.aliases[ident.Name]
+		if binding == nil {
+			return "", nil, false
+		}
+		return expr.Sel.Name, binding, true
+	case *ast.Ident:
+		for _, binding := range imports.dot {
+			if binding.hasDeclaration(expr.Name) || binding.hasOption(expr.Name) || binding.hasConstant(expr.Name) {
+				return expr.Name, binding, true
+			}
+		}
+	}
+	return "", nil, false
+}
+
+func receiverMethodNameAndBinding(call *ast.CallExpr, imports goBindingImports) (string, goBindingReceiver, bool) {
+	fun := unparen(call.Fun)
+	for {
+		switch typed := fun.(type) {
+		case *ast.IndexExpr:
+			fun = unparen(typed.X)
+		case *ast.IndexListExpr:
+			fun = unparen(typed.X)
+		default:
+			goto resolved
+		}
+	}
+
+resolved:
+	expr, ok := fun.(*ast.SelectorExpr)
+	if !ok {
+		return "", goBindingReceiver{}, false
+	}
+	ident, ok := unparen(expr.X).(*ast.Ident)
+	if !ok {
+		return "", goBindingReceiver{}, false
+	}
+	receiver, ok := imports.receiverVars[ident.Name]
+	if !ok || receiver.binding == nil {
+		return "", goBindingReceiver{}, false
+	}
+	return expr.Sel.Name, receiver, true
+}
+
+func (b *goBinding) hasDeclaration(name string) bool {
+	for _, declaration := range b.Declarations {
+		if declaration.Function == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *goBinding) hasOption(name string) bool {
+	for _, declaration := range b.Declarations {
+		for _, option := range declaration.Options {
+			if option.Function == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (b *goBinding) hasConstant(name string) bool {
+	_, ok := b.Constants[name]
+	return ok
+}
+
+func (e *extractor) parseBindingCondition(call *ast.CallExpr, binding *goBinding, declaration goBindingDeclaration, imports goBindingImports) (Condition, error) {
+	name := declaration.Name
+	if declaration.NameArg != nil {
+		if *declaration.NameArg >= len(call.Args) {
+			return Condition{}, fmt.Errorf("%s requires a name argument", declaration.displayName())
+		}
+		value, ok := e.stringValue(call.Args[*declaration.NameArg])
+		if !ok {
+			return Condition{}, fmt.Errorf("%s name must be a string literal or string const", declaration.displayName())
+		}
+		name = value
+	}
+
+	condition := Condition{
+		Name: name,
+		Kind: declaration.Kind,
+		Interface: Interface{
+			Type: declaration.InterfaceType,
+		},
+	}
+
+	for _, value := range declaration.Values {
+		if err := applyBindingValue(&condition, value.Target, value.Value); err != nil {
+			return Condition{}, err
+		}
+	}
+
+	for i, arg := range call.Args {
+		if declaration.NameArg != nil && i == *declaration.NameArg {
+			continue
+		}
+		subcall, ok := unparen(arg).(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		option, ok := bindingOptionForCall(subcall, imports, binding, declaration)
+		if !ok {
+			continue
+		}
+		if option.ValueArg >= len(subcall.Args) {
+			return Condition{}, fmt.Errorf("%s requires a value argument", option.Function)
+		}
+		value, ok := e.bindingValue(subcall.Args[option.ValueArg], imports, binding)
+		if !ok {
+			return Condition{}, fmt.Errorf("%s value must be a string literal, string const, or binding constant", option.Function)
+		}
+		if err := applyBindingValue(&condition, option.Target, value); err != nil {
+			return Condition{}, err
+		}
+	}
+
+	return condition, nil
+}
+
+func (d goBindingDeclaration) displayName() string {
+	if d.Function != "" {
+		return d.Function
+	}
+	if d.Method != "" {
+		return d.Method
+	}
+	return "declaration"
+}
+
+func (e *extractor) bindingValue(expr ast.Expr, imports goBindingImports, expected *goBinding) (string, bool) {
+	if value, ok := e.stringValue(expr); ok {
+		return value, true
+	}
+	switch typed := unparen(expr).(type) {
+	case *ast.SelectorExpr:
+		ident, ok := unparen(typed.X).(*ast.Ident)
+		if !ok {
+			return "", false
+		}
+		binding := imports.aliases[ident.Name]
+		if binding != expected {
+			return "", false
+		}
+		value, ok := binding.Constants[typed.Sel.Name]
+		return value, ok
+	case *ast.Ident:
+		for _, binding := range imports.dot {
+			if binding != expected {
+				continue
+			}
+			value, ok := binding.Constants[typed.Name]
+			if ok {
+				return value, true
+			}
+		}
+	}
+	return "", false
+}
+
+func applyBindingValue(condition *Condition, target string, value string) error {
+	switch target {
+	case "interface.bucketClass":
+		condition.Interface.BucketClass = value
+	default:
+		return fmt.Errorf("unsupported binding target %q", target)
+	}
+	return nil
 }
 
 func (e *extractor) parseAPI(call *ast.CallExpr, imports importSet) (Condition, error) {

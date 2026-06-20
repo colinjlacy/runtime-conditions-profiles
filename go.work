@@ -1,6 +1,7 @@
 go 1.25.0
 
 use (
+	./demo/aws-sdk-go-v2
 	./ebpf-profiler
 	./go
 	./platform/demo/provider/todos-api
