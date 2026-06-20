@@ -1,10 +1,12 @@
-# Common Capabilities Extension Specification (Draft)
+# Common Integrations Extension Specification (Draft)
 
 ## Status
 
 **Draft — Request for Comments**
 
-This document defines a first-party Runtime Conditions extension for common application integration capabilities.
+This document defines a first-party Runtime Conditions extension for common application runtime integrations.
+
+The machine-readable extension definition is [common-integrations-v1alpha1.yaml](common-integrations-v1alpha1.yaml).
 
 This extension is not part of the core Runtime Conditions Profile vocabulary. Profiles that use this extension MUST declare it in the top-level `extensions` list.
 
@@ -14,7 +16,7 @@ This extension is not part of the core Runtime Conditions Profile vocabulary. Pr
 
 ```yaml
 extensions:
-  - runtimeconditions.io/common-capabilities/v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
 ```
 
 This extension defines:
@@ -23,7 +25,7 @@ This extension defines:
 - Common interface types
 - Common interface fields
 - Common engine values
-- Validation rules for common capability declarations
+- Validation constraints for common integration declarations
 
 This extension owns the unqualified vocabulary it defines within the scopes described in this document. Other extensions MAY depend on this extension and reference that vocabulary, but MUST NOT redefine the same unqualified vocabulary in the same ownership scope.
 
@@ -39,7 +41,7 @@ This extension defines the following Condition kinds:
 | `datastore` | Persistent data storage systems |
 | `cache` | Volatile data storage optimized for fast access |
 
-These kinds are intentionally broad so that multiple interaction models or implementation families can be expressed within the same capability class through the `interface` block.
+These kinds are intentionally broad so that multiple interaction models or implementation families can be expressed within the same integration class through the `interface` block.
 
 ---
 
@@ -268,7 +270,7 @@ workload:
   version: v1.2.3
 
 extensions:
-  - runtimeconditions.io/common-capabilities/v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
 
 conditions:
   - name: primary-db
@@ -296,4 +298,4 @@ conditions:
 
 # 8. Summary
 
-The Common Capabilities extension defines common application integration vocabulary while leaving the core Runtime Conditions Profile focused on document structure, extension resolution, and deterministic validation.
+The Common Integrations extension defines common application integration vocabulary while leaving the core Runtime Conditions Profile focused on document structure, extension resolution, and deterministic validation.

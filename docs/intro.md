@@ -1,8 +1,8 @@
 # Runtime Conditions Profile RFC
 
-This folder contains the working draft of the Runtime Conditions Profile specification and supporting first-party extension drafts.
+This repository contains the working draft of the Runtime Conditions Profile specification and supporting first-party extension drafts.
 
-The Runtime Conditions Profile is intended to provide a portable, implementation-neutral declaration of the external runtime capabilities an application workload requires. The profile describes requirements, not provisioning choices, deployment topology, infrastructure resources, credentials, or concrete target-environment values.
+The Runtime Conditions Profile is intended to provide a portable, implementation-neutral declaration of the external runtime integrations an application workload requires. The profile describes requirements, not provisioning choices, deployment topology, infrastructure resources, credentials, or concrete target-environment values.
 
 The current draft is organized around a small core specification and extension-backed practical vocabulary. The core defines the document shape and interoperability contract. Extensions define the concrete runtime condition vocabulary that makes profiles useful for real workloads.
 
@@ -12,9 +12,9 @@ The current draft is organized around a small core specification and extension-b
 
 Read the documents in this order:
 
-1. [Core Runtime Conditions Profile draft](third-draft.md)
-2. [Common Capabilities extension](extensions/common-capabilities-v1alpha1.md)
-3. [Environment Configuration extension](extensions/env-configuration-v1alpha1.md)
+1. [Core Runtime Conditions Profile draft](fifth-draft.md)
+2. [Common Integrations extension](../extensions/common-integrations/README.md)
+3. [Environment Configuration extension](../extensions/env-configuration/README.md)
 4. [Kratix implementation proposal](core/kratix-runtime-conditions-implementation-proposal.md)
 
 The core draft should be reviewed as the specification kernel. It defines:
@@ -28,7 +28,7 @@ The core draft should be reviewed as the specification kernel. It defines:
 - Validation phases
 - Extension resolution
 - Vocabulary ownership rules
-- Conformance expectations for profiles, extensions, generators, validators, and resolvers
+- Conformance expectations for profiles, extensions, generators, validators, and adapters
 
 The first-party extensions should be reviewed as standard vocabulary that can be bundled by implementations while still remaining outside the core specification.
 
@@ -82,7 +82,7 @@ The core specification owns this object model. Extensions own the concrete value
 
 First-party extensions define common vocabulary expected to cover the initial majority use cases.
 
-The Common Capabilities extension defines common integration kinds and interface types, including:
+The Common Integrations extension defines common integration kinds and interface types, including:
 
 - `api`
 - `datastore`
@@ -107,8 +107,8 @@ These extensions are first-party, but they are not core vocabulary. Profiles tha
 Examples and implementation documents should show how the core and extensions work together:
 
 - A structurally valid core-only profile
-- A profile using common capabilities
-- A profile using common capabilities plus environment configuration
+- A profile using common integrations
+- A profile using common integrations plus environment configuration
 - A generated profile produced from application code
 - A platform workflow that validates the profile, ensures required integrations exist, and injects workload configuration inputs before deployment
 
@@ -124,12 +124,12 @@ flowchart LR
   Generator --> Profile["Runtime Conditions Profile"]
 
   Core["Core Spec"] --> Profile
-  Common["Common Capabilities Extension"] --> Profile
+  Common["Common Integrations Extension"] --> Profile
   Env["Environment Configuration Extension"] --> Profile
 
   Profile --> Validator["Validator"]
-  Validator --> Resolver["Platform Resolver / Adapter"]
-  Resolver --> Platform["Target Platform Workflow"]
+  Validator --> Adapter["Platform Adapter"]
+  Adapter --> Platform["Target Platform Workflow"]
 ```
 
 The expected flow is:
@@ -137,8 +137,8 @@ The expected flow is:
 1. Application code declares or implies runtime integration requirements.
 2. A language-specific generator produces a Runtime Conditions Profile.
 3. The generated profile declares the extensions required to interpret its vocabulary.
-4. A validator checks the core structure, extension resolution, vocabulary ownership, and semantic rules.
-5. A platform resolver or adapter maps valid Conditions to available platform capabilities.
+4. A validator checks the core structure, extension resolution, vocabulary ownership, and extension JSON Schema validation.
+5. A platform adapter maps valid Conditions to available platform integrations.
 6. Platform automation ensures required integrations exist and provides declared workload configuration inputs.
 7. The workload is deployed only after required runtime conditions can be satisfied.
 
@@ -146,7 +146,7 @@ The expected flow is:
 
 # Core Versus Extensions
 
-The core specification exists to define a stable interchange contract. It intentionally avoids owning concrete runtime capability vocabulary.
+The core specification exists to define a stable interchange contract. It intentionally avoids owning concrete runtime integration vocabulary.
 
 Core owns:
 
@@ -167,7 +167,7 @@ Extensions own:
 - Additional Condition fields
 - Additional interface fields
 - Field values such as engine names
-- Semantic validation rules for those fields and values
+- JSON Schema validation schemas for those fields and values
 
 This split is important because a small core can stay stable while integration vocabulary evolves through extensions.
 
@@ -197,7 +197,7 @@ The most useful feedback at this stage is architectural feedback on:
 - Whether first-party extensions provide enough practical vocabulary
 - Whether extension ownership and conflict rules are deterministic enough
 - Whether the Environment Configuration extension correctly captures workload configuration inputs without embedding target-environment values
-- Whether validators and resolvers have enough information to behave consistently across implementations
+- Whether validators and adapters have enough information to behave consistently across implementations
 - Whether the profile is useful to both generators and platform adapters
 
 The intent is not to standardize one implementation workflow. The intent is to standardize the profile contract that lets generators, validators, extensions, and platform adapters interoperate.

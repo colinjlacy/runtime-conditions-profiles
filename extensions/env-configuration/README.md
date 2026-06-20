@@ -6,6 +6,8 @@
 
 This document defines a first-party Runtime Conditions extension for declaring workload configuration inputs that are provided through environment variables.
 
+The machine-readable extension definition is [env-configuration-v1alpha1.yaml](env-configuration-v1alpha1.yaml).
+
 This extension is not part of the core Runtime Conditions Profile vocabulary. Profiles that use this extension MUST declare it in the top-level `extensions` list.
 
 ---
@@ -14,13 +16,13 @@ This extension is not part of the core Runtime Conditions Profile vocabulary. Pr
 
 ```yaml
 extensions:
-  - runtimeconditions.io/common-capabilities/v1alpha1
-  - runtimeconditions.io/env-configuration/v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 ```
 
 This extension defines the Condition field `configuration`.
 
-This extension depends on `runtimeconditions.io/common-capabilities/v1alpha1` for the common Condition kinds and interface types referenced by its standard property validation table.
+This extension depends on `https://runtimeconditions.io/extensions/common-integrations:v1alpha1` for the common Condition kinds and interface types referenced by its standard property validation table.
 
 This extension owns the unqualified Condition field name `configuration`. Other extensions MAY depend on this extension and reference that field, but MUST NOT redefine `configuration` as a separate Condition field.
 
@@ -163,7 +165,7 @@ Extensions that define additional Condition kinds or interface types MAY define 
 
 A Condition that uses this extension is invalid if:
 
-- `configuration` appears and `runtimeconditions.io/env-configuration/v1alpha1` is not declared
+- `configuration` appears and `https://runtimeconditions.io/extensions/env-configuration:v1alpha1` is not declared
 - `configuration` contains neither `env` nor `alternatives`
 - `configuration` contains both `env` and `alternatives`
 - `configuration.env` is present but empty
@@ -195,8 +197,8 @@ workload:
   version: v1.2.3
 
 extensions:
-  - runtimeconditions.io/common-capabilities/v1alpha1
-  - runtimeconditions.io/env-configuration/v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 
 conditions:
   - name: todos-api
@@ -233,4 +235,4 @@ conditions:
 
 # 8. Summary
 
-The Environment Configuration extension defines a portable workload input contract for environment-variable-based dependency configuration while preserving the core Runtime Conditions Profile boundary between required capabilities and concrete fulfillment values.
+The Environment Configuration extension defines a portable workload input contract for environment-variable-based dependency configuration while preserving the core Runtime Conditions Profile boundary between runtime integration requirements and concrete fulfillment values.
