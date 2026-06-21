@@ -110,4 +110,4 @@ The application imports and calls the SDK normally. Runtime Conditions tooling
 reads the package manifest for direct imports and emits the profile condition
 without requiring application code to import a separate declaration package.
 
-In the Kratix demo, the runtime-workload adapter provisions an `S3Bucket` request. The S3Bucket Promise publishes non-sensitive connection properties through a ConfigMap and sensitive credential properties through a Secret. The adapter uses the profile's `configuration.env[].name` values to wire those provider outputs into the workload Deployment.
+In the Kratix demo, the runtime-workload adapter provisions an `S3Bucket` request. The S3Bucket Promise creates a real AWS S3 bucket and a bucket-scoped IAM access key using platform-owned AWS admin credentials. It publishes non-sensitive connection properties through a ConfigMap and sensitive workload credentials through a Secret. The adapter uses the profile's `configuration.env[].name` values to wire those provider outputs into the workload Deployment.

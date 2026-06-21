@@ -175,8 +175,8 @@ The profile records the environment variable names expected by the workload. It 
 | ---- | ---- |
 | `baseUrl` | Literal service URL from the API catalog |
 | `url`, `hostname`, `port` | Redis Promise connection ConfigMap |
-| `bucket`, `region` | S3Bucket Promise connection ConfigMap |
-| `accessKeyId`, `secretAccessKey` | S3Bucket Promise credentials Secret |
+| `bucket`, `region` | S3Bucket Promise connection ConfigMap for the provisioned AWS bucket |
+| `accessKeyId`, `secretAccessKey` | S3Bucket Promise credentials Secret for the generated bucket-scoped IAM access key |
 
 The same adapter emits Cilium policy requests for the resolved workload:
 

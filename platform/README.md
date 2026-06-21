@@ -12,6 +12,18 @@ The scripts assume:
 
 The Kratix installer used here is the OSS quick-start installer. It is suitable for this executable proof, not for a hardened long-lived production platform.
 
+## AWS Credentials
+
+The `S3Bucket` Promise provisions a real AWS S3 bucket and a bucket-scoped IAM user/access key for the workload. Before installing the Promises, create an AWS admin credential Secret in the Kratix platform namespace:
+
+```sh
+kubectl -n kratix-platform-system create secret generic aws-admin-credentials \
+  --from-literal=ACCESS_KEY_ID=<aws-access-key-id> \
+  --from-literal=SECRET_ACCESS_KEY=<aws-secret-access-key>
+```
+
+The pipeline reads those values as admin credentials, then writes separate workload credentials into the application namespace through the generated `S3Bucket` request.
+
 ## Quick Run
 
 From the repository root:
@@ -123,8 +135,8 @@ The `RuntimeWorkload` Promise adapter maps declared properties to provider outpu
 | --- | --- |
 | `api` `baseUrl` | Literal service URL from the API catalog |
 | Redis `url`, `hostname`, `port` | Redis Promise connection ConfigMap |
-| S3 `bucket`, `region` | S3Bucket Promise connection ConfigMap |
-| S3 `accessKeyId`, `secretAccessKey` | S3Bucket Promise credentials Secret |
+| S3 `bucket`, `region` | S3Bucket Promise connection ConfigMap backed by a real AWS S3 bucket |
+| S3 `accessKeyId`, `secretAccessKey` | S3Bucket Promise credentials Secret backed by a bucket-scoped IAM access key |
 
 This keeps the Kratix Promises reusable outside the adapter. The Redis and S3Bucket Promises publish generic connection artifacts, while the RuntimeWorkload adapter performs the profile-specific binding into a Kubernetes `Deployment`.
 
