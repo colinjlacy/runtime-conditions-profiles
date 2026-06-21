@@ -31,6 +31,6 @@ printf '%s\n' "${RESPONSE}"
 
 printf '%s' "${RESPONSE}" | grep -q '"todosApi":"ok"' || fail "todos API smoke check failed"
 printf '%s' "${RESPONSE}" | grep -q '"cache":"ok"' || fail "cache smoke check failed"
+printf '%s' "${RESPONSE}" | grep -q '"auditLog":"ok"' || fail "audit log smoke check failed"
 
 log "Smoke test passed"
-

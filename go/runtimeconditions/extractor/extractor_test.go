@@ -36,10 +36,15 @@ type TodoEvent struct {
 
 var _ = runcon.API("todos-api",
 	runcon.POST(todoPath, runcon.Request[CreateTodoRequest](), runcon.Response[Todo]()),
+	runcon.Env("baseUrl", "TODOS_API_URL"),
 )
 
 var _ = runcon.Datastore("primary-db", runcon.Relational(runcon.MySQL))
-var _ = runcon.Cache("todo-cache", runcon.KeyValue(runcon.Redis))
+var _ = runcon.Cache("todo-cache",
+	runcon.KeyValue(runcon.Redis),
+	runcon.EnvAlternative(runcon.Env("url", "REDIS_URL")),
+	runcon.EnvAlternative(runcon.Env("hostname", "REDIS_HOST"), runcon.Env("port", "REDIS_PORT")),
+)
 var _ = runcon.MessageBus("todo-events",
 	runcon.PubSub(runcon.NATS),
 	runcon.Publishes(eventsSubject, runcon.Payload[TodoEvent]()),
@@ -59,7 +64,7 @@ var _ = runcon.MessageBus("todo-events",
 		t.Fatal(err)
 	}
 
-	if !slices.Equal(profile.Extensions, []string{"https://runtimeconditions.io/extensions/common-integrations:v1alpha1", "runtimeconditions.io/message-bus/v1alpha1"}) {
+	if !slices.Equal(profile.Extensions, []string{"https://runtimeconditions.io/extensions/common-integrations:v1alpha1", "https://runtimeconditions.io/extensions/env-configuration:v1alpha1", "runtimeconditions.io/message-bus/v1alpha1"}) {
 		t.Fatalf("unexpected extensions: %#v", profile.Extensions)
 	}
 	if len(profile.Conditions) != 4 {
@@ -76,6 +81,9 @@ var _ = runcon.MessageBus("todo-events",
 	if got := api.Interface.Operations[0].ResponseSchema.(map[string]any)["completed"]; got != "boolean" {
 		t.Fatalf("unexpected response schema completed: %#v", got)
 	}
+	if api.Configuration == nil || len(api.Configuration.Env) != 1 || api.Configuration.Env[0].Name != "TODOS_API_URL" {
+		t.Fatalf("unexpected api configuration: %#v", api.Configuration)
+	}
 
 	datastore := profile.Conditions[1]
 	if datastore.Kind != "datastore" || datastore.Interface.Type != "relational" || datastore.Interface.Engine != "mysql" {
@@ -85,6 +93,9 @@ var _ = runcon.MessageBus("todo-events",
 	cache := profile.Conditions[2]
 	if cache.Kind != "cache" || cache.Interface.Type != "key_value" || cache.Interface.Engine != "redis" {
 		t.Fatalf("unexpected cache condition: %#v", cache)
+	}
+	if cache.Configuration == nil || len(cache.Configuration.Alternatives) != 2 {
+		t.Fatalf("unexpected cache configuration: %#v", cache.Configuration)
 	}
 
 	messageBus := profile.Conditions[3]
@@ -142,7 +153,7 @@ func writeAuditLog(ctx context.Context) error {
 		t.Fatal(err)
 	}
 
-	if !slices.Equal(profile.Extensions, []string{"https://aws.example.com/runtimeconditions/object-store:v1alpha1"}) {
+	if !slices.Equal(profile.Extensions, []string{"https://aws.example.com/runtimeconditions/object-store:v1alpha1", "https://runtimeconditions.io/extensions/env-configuration:v1alpha1"}) {
 		t.Fatalf("unexpected extensions: %#v", profile.Extensions)
 	}
 	if len(profile.Conditions) != 1 {
@@ -155,5 +166,11 @@ func writeAuditLog(ctx context.Context) error {
 	}
 	if condition.Interface.Type != "aws.s3" || condition.Interface.BucketClass != "standard" {
 		t.Fatalf("unexpected interface: %#v", condition.Interface)
+	}
+	if condition.Configuration == nil || len(condition.Configuration.Env) != 4 {
+		t.Fatalf("unexpected configuration: %#v", condition.Configuration)
+	}
+	if condition.Configuration.Env[2].Name != "AWS_ACCESS_KEY_ID" || !condition.Configuration.Env[2].Sensitive {
+		t.Fatalf("unexpected credential configuration: %#v", condition.Configuration.Env[2])
 	}
 }

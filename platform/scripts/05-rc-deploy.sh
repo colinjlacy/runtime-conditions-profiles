@@ -79,8 +79,23 @@ kubectl -n "${REQUEST_NAMESPACE}" wait "runtimeworkload/${REQUEST_NAME}" \
   --for=condition=ConfigureWorkflowCompleted \
   --timeout=180s
 
+log "Waiting for generated Cilium namespace lockdown request"
+kubectl -n "${REQUEST_NAMESPACE}" wait "ciliumnamespacelockdown/runtimeconditions-lockdown" \
+  --for=condition=ConfigureWorkflowCompleted \
+  --timeout=180s
+
+log "Waiting for generated Cilium API access request"
+kubectl -n "${REQUEST_NAMESPACE}" wait "ciliumapiaccess/${REQUEST_NAME}-todos-api-access" \
+  --for=condition=ConfigureWorkflowCompleted \
+  --timeout=180s
+
 log "Waiting for generated Redis request"
 kubectl -n "${REQUEST_NAMESPACE}" wait "redis/${REQUEST_NAME}-cache" \
+  --for=condition=ConfigureWorkflowCompleted \
+  --timeout=180s
+
+log "Waiting for generated S3Bucket request"
+kubectl -n "${REQUEST_NAMESPACE}" wait "s3bucket/${REQUEST_NAME}-object-store" \
   --for=condition=ConfigureWorkflowCompleted \
   --timeout=180s
 
@@ -88,6 +103,8 @@ log "Waiting for generated application Deployment"
 wait_for_deployment "${REQUEST_NAMESPACE}" "${REQUEST_NAME}" 240s
 
 kubectl -n "${REQUEST_NAMESPACE}" get runtimeworkload "${REQUEST_NAME}"
+kubectl -n "${REQUEST_NAMESPACE}" get ciliumnamespacelockdown runtimeconditions-lockdown
+kubectl -n "${REQUEST_NAMESPACE}" get ciliumapiaccess "${REQUEST_NAME}-todos-api-access"
 kubectl -n "${REQUEST_NAMESPACE}" get redis "${REQUEST_NAME}-cache"
+kubectl -n "${REQUEST_NAMESPACE}" get s3bucket "${REQUEST_NAME}-object-store"
 kubectl -n "${REQUEST_NAMESPACE}" get deployment "${REQUEST_NAME}"
-

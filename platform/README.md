@@ -51,6 +51,9 @@ GHCR_OWNER=example GHCR_REPOSITORY=runtimeconditions-demo platform/scripts/02-us
 The workflow at `.github/workflows/publish-ghcr-images.yml` builds and pushes public GHCR images for:
 
 - `redis-pipeline`
+- `cilium-api-access-pipeline`
+- `cilium-namespace-lockdown-pipeline`
+- `s3-bucket-pipeline`
 - `runtime-workload-pipeline`
 - `todos-api`
 - `request-logger`
@@ -59,6 +62,9 @@ It publishes them as:
 
 ```text
 ghcr.io/<owner>/<repo>-redis-pipeline:<tag>
+ghcr.io/<owner>/<repo>-cilium-api-access-pipeline:<tag>
+ghcr.io/<owner>/<repo>-cilium-namespace-lockdown-pipeline:<tag>
+ghcr.io/<owner>/<repo>-s3-bucket-pipeline:<tag>
 ghcr.io/<owner>/<repo>-runtime-workload-pipeline:<tag>
 ghcr.io/<owner>/<repo>-todos-api:<tag>
 ghcr.io/<owner>/<repo>-request-logger:<tag>
@@ -99,7 +105,46 @@ That script swaps the catalog to an incompatible OpenAPI document and submits a 
 
 - Kratix quick-start stack in `kratix-platform-system`
 - `runtimeconditions.io/v1alpha1, Kind=Redis` Promise
+- `runtimeconditions.io/v1alpha1, Kind=CiliumAPIAccess` Promise
+- `runtimeconditions.io/v1alpha1, Kind=CiliumNamespaceLockdown` Promise
+- `runtimeconditions.io/v1alpha1, Kind=S3Bucket` Promise
 - `runtimeconditions.io/v1alpha1, Kind=RuntimeWorkload` Promise
 - Backstage-compatible API catalog ConfigMap for `todos-api`
 - In-cluster `todos-api` provider Deployment and Service
 - A `RuntimeWorkload` request generated from source-derived Runtime Conditions
+
+## Environment Injection Contract
+
+The generated Runtime Conditions Profile declares workload-facing environment variable names in `configuration.env`. It does not include the values for those variables.
+
+The `RuntimeWorkload` Promise adapter maps declared properties to provider outputs:
+
+| Profile property | Demo provider output |
+| --- | --- |
+| `api` `baseUrl` | Literal service URL from the API catalog |
+| Redis `url`, `hostname`, `port` | Redis Promise connection ConfigMap |
+| S3 `bucket`, `region` | S3Bucket Promise connection ConfigMap |
+| S3 `accessKeyId`, `secretAccessKey` | S3Bucket Promise credentials Secret |
+
+This keeps the Kratix Promises reusable outside the adapter. The Redis and S3Bucket Promises publish generic connection artifacts, while the RuntimeWorkload adapter performs the profile-specific binding into a Kubernetes `Deployment`.
+
+## API Network Policy Contract
+
+The `CiliumAPIAccess` Promise is a generic network-policy Promise. It does not read Runtime Conditions Profiles directly.
+
+The `CiliumNamespaceLockdown` Promise renders namespace-scoped default-deny Cilium policy for all pods in the namespace, with DNS egress explicitly allowed so FQDN-based policies can still function.
+
+The `CiliumAPIAccess` interface accepts:
+
+- `workloadSelector.matchLabels` for the workload pods that need egress
+- `destination.service` or `destination.fqdn`
+- optional `destination.podSelector.matchLabels` for service-backed destinations that also need ingress opened under default-deny
+- `destination.port`
+- HTTP `rules` containing only `method` and `path`
+
+The RuntimeWorkload adapter creates one `CiliumAPIAccess` request for each API Condition with declared HTTP operations. The Promise renders a `CiliumNetworkPolicy` with L7 HTTP egress rules derived from those declared methods and paths.
+
+Redis and S3Bucket requests also receive the workload selector from the RuntimeWorkload adapter. Their Promises render dependency-specific Cilium policies:
+
+- Redis: egress from the workload to Redis on TCP/6379, plus Redis ingress from that workload
+- S3Bucket: egress from the workload to the bucket's regional S3 FQDNs on TCP/443

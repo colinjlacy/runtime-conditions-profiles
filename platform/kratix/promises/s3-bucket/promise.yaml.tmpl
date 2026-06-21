@@ -1,7 +1,7 @@
 apiVersion: platform.kratix.io/v1alpha1
 kind: Promise
 metadata:
-  name: redis
+  name: s3-bucket
   labels:
     kratix.io/promise-version: v0.1.0
 spec:
@@ -9,13 +9,13 @@ spec:
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     metadata:
-      name: redis.runtimeconditions.io
+      name: s3buckets.runtimeconditions.io
     spec:
       group: runtimeconditions.io
       names:
-        kind: Redis
-        plural: redis
-        singular: redis
+        kind: S3Bucket
+        plural: s3buckets
+        singular: s3bucket
       scope: Namespaced
       versions:
         - name: v1alpha1
@@ -30,9 +30,11 @@ spec:
                 spec:
                   type: object
                   properties:
-                    size:
+                    bucketName:
                       type: string
-                      default: small
+                    region:
+                      type: string
+                      default: us-east-1
                     consumers:
                       type: array
                       items:
@@ -58,8 +60,8 @@ spec:
         - apiVersion: platform.kratix.io/v1alpha1
           kind: Pipeline
           metadata:
-            name: configure-redis
+            name: configure-s3-bucket
           spec:
             containers:
               - name: configure
-                image: __REDIS_PIPELINE_IMAGE__
+                image: __S3_BUCKET_PIPELINE_IMAGE__

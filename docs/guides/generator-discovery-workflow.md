@@ -63,9 +63,13 @@ The workload calls the SDK normally:
 
 ```go
 func writeAuditLog(ctx context.Context, event string) error {
+	bucket := os.Getenv("AUDIT_LOG_BUCKET")
+	if bucket == "" {
+		return errors.New("AUDIT_LOG_BUCKET is not set")
+	}
 	client := s3.NewFromConfig(s3.Config{})
 	_, err := client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: stringPtr(envOrDefault("AUDIT_LOG_BUCKET", "demo-audit-log")),
+		Bucket: stringPtr(bucket),
 		Key:    stringPtr("request-logger/demo.json"),
 		Body:   strings.NewReader(event),
 	})
@@ -87,6 +91,18 @@ The package manifest maps `Client.PutObject` to:
 ```yaml
 kind: aws.object_store
 interfaceType: aws.s3
+configuration:
+  env:
+    - property: bucket
+      name: AUDIT_LOG_BUCKET
+    - property: region
+      name: AWS_REGION
+    - property: accessKeyId
+      name: AWS_ACCESS_KEY_ID
+      sensitive: true
+    - property: secretAccessKey
+      name: AWS_SECRET_ACCESS_KEY
+      sensitive: true
 ```
 
 Running the generator:
@@ -106,25 +122,69 @@ produces a profile that includes both explicit declarations and SDK-discovered C
 extensions:
   - https://aws.example.com/runtimeconditions/object-store:v1alpha1
   - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 
 conditions:
   - name: todos-api
     kind: api
     interface:
       type: http
+    configuration:
+      env:
+        - property: baseUrl
+          name: TODOS_API_URL
   - name: request-cache
     kind: cache
     interface:
       type: key_value
       engine: redis
+    configuration:
+      alternatives:
+        - env:
+            - property: url
+              name: REDIS_URL
+        - env:
+            - property: hostname
+              name: REDIS_HOST
+            - property: port
+              name: REDIS_PORT
   - name: s3-object-store
     kind: aws.object_store
     interface:
       type: aws.s3
       bucketClass: standard
+    configuration:
+      env:
+        - property: bucket
+          name: AUDIT_LOG_BUCKET
+        - property: region
+          name: AWS_REGION
+        - property: accessKeyId
+          name: AWS_ACCESS_KEY_ID
+          sensitive: true
+        - property: secretAccessKey
+          name: AWS_SECRET_ACCESS_KEY
+          sensitive: true
 ```
 
 The `todos-api` and `request-cache` Conditions come from explicit `rc` declarations in the workload. The `s3-object-store` Condition comes from normal SDK usage plus the SDK package manifest.
+
+The profile records the environment variable names expected by the workload. It does not contain the values for those variables. In the Kratix demo, the runtime-workload adapter maps these requested properties to provider-owned outputs:
+
+| Condition property | Kubernetes source |
+| ---- | ---- |
+| `baseUrl` | Literal service URL from the API catalog |
+| `url`, `hostname`, `port` | Redis Promise connection ConfigMap |
+| `bucket`, `region` | S3Bucket Promise connection ConfigMap |
+| `accessKeyId`, `secretAccessKey` | S3Bucket Promise credentials Secret |
+
+The same adapter emits Cilium policy requests for the resolved workload:
+
+- A `CiliumNamespaceLockdown` request creates namespace default-deny pod networking.
+- A `CiliumAPIAccess` request is emitted for API Conditions that declare HTTP operations. That request contains the workload selector, resolved service or FQDN destination, port, and only the `method` and `path` pairs declared by the Condition.
+- Redis and S3Bucket requests include the workload selector so their Promises can render dependency-specific Cilium policies.
+
+The generator still emits only the Runtime Conditions Profile. Network-policy requests are adapter output.
 
 ---
 
@@ -144,6 +204,7 @@ The extension definition declares its dependencies:
 spec:
   dependencies:
     - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 ```
 
 Generators and validators should resolve dependencies by extension identifier from configured sources such as:

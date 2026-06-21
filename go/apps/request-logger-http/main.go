@@ -28,8 +28,16 @@ func init() {
 	rc.API("todos-api",
 		rc.Spec("openapi", "catalog://api/default/todos-api", "1.0.0"),
 		rc.GET("/todos/{id}", rc.Response[Todo]()),
+		rc.Env("baseUrl", "TODOS_API_URL"),
 	)
-	rc.Cache("request-cache", rc.KeyValue(rc.Redis))
+	rc.Cache("request-cache",
+		rc.KeyValue(rc.Redis),
+		rc.EnvAlternative(rc.Env("url", "REDIS_URL")),
+		rc.EnvAlternative(
+			rc.Env("hostname", "REDIS_HOST"),
+			rc.Env("port", "REDIS_PORT"),
+		),
+	)
 }
 
 func main() {
@@ -111,9 +119,13 @@ func checkTodosAPI(ctx context.Context) error {
 }
 
 func writeAuditLog(ctx context.Context, event string) error {
+	bucket := os.Getenv("AUDIT_LOG_BUCKET")
+	if bucket == "" {
+		return errors.New("AUDIT_LOG_BUCKET is not set")
+	}
 	client := s3.NewFromConfig(s3.Config{})
 	_, err := client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: stringPtr(envOrDefault("AUDIT_LOG_BUCKET", "demo-audit-log")),
+		Bucket: stringPtr(bucket),
 		Key:    stringPtr("request-logger/demo.json"),
 		Body:   strings.NewReader(event),
 	})

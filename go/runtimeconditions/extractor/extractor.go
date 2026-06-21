@@ -21,6 +21,7 @@ const (
 	DeclarationImportPath = "github.com/colinjlacy/golang-ast-inspection/go/runtimeconditions"
 
 	commonIntegrationsExtension = "https://runtimeconditions.io/extensions/common-integrations:v1alpha1"
+	envConfigurationExtension   = "https://runtimeconditions.io/extensions/env-configuration:v1alpha1"
 	messageBusExtension         = "runtimeconditions.io/message-bus/v1alpha1"
 )
 
@@ -53,10 +54,11 @@ type Workload struct {
 }
 
 type Condition struct {
-	Name      string    `yaml:"name,omitempty"`
-	Kind      string    `yaml:"kind"`
-	Interface Interface `yaml:"interface"`
-	Optional  bool      `yaml:"optional,omitempty"`
+	Name          string         `yaml:"name,omitempty"`
+	Kind          string         `yaml:"kind"`
+	Interface     Interface      `yaml:"interface"`
+	Optional      bool           `yaml:"optional,omitempty"`
+	Configuration *Configuration `yaml:"configuration,omitempty"`
 }
 
 type Interface struct {
@@ -85,6 +87,22 @@ type Subject struct {
 	Name          string `yaml:"name"`
 	Direction     string `yaml:"direction"`
 	PayloadSchema any    `yaml:"payloadSchema,omitempty"`
+}
+
+type Configuration struct {
+	Env          []EnvInput                 `yaml:"env,omitempty"`
+	Alternatives []ConfigurationAlternative `yaml:"alternatives,omitempty"`
+}
+
+type ConfigurationAlternative struct {
+	Env []EnvInput `yaml:"env"`
+}
+
+type EnvInput struct {
+	Property  string `yaml:"property"`
+	Name      string `yaml:"name"`
+	Sensitive bool   `yaml:"sensitive,omitempty"`
+	Required  *bool  `yaml:"required,omitempty"`
 }
 
 type parsedFile struct {
@@ -125,6 +143,7 @@ type goBindingDeclaration struct {
 	Kind          string            `yaml:"kind"`
 	InterfaceType string            `yaml:"interfaceType"`
 	NameArg       *int              `yaml:"nameArg"`
+	Configuration *Configuration    `yaml:"configuration"`
 	Values        []goBindingValue  `yaml:"values"`
 	Options       []goBindingOption `yaml:"options"`
 }
@@ -268,6 +287,9 @@ func ExtractDir(dir string, opts Options) (*RuntimeConditionsProfile, error) {
 					walkErr = e.nodeError(call, err)
 					return false
 				}
+				if condition.Configuration != nil {
+					extensions[envConfigurationExtension] = true
+				}
 				conditions = append(conditions, condition)
 				return false
 			}
@@ -282,6 +304,9 @@ func ExtractDir(dir string, opts Options) (*RuntimeConditionsProfile, error) {
 				return false
 			}
 			extensions[binding.ExtensionID] = true
+			if condition.Configuration != nil {
+				extensions[envConfigurationExtension] = true
+			}
 			conditions = append(conditions, condition)
 			return false
 		})
@@ -907,6 +932,7 @@ func (e *extractor) parseBindingCondition(call *ast.CallExpr, binding *goBinding
 		Interface: Interface{
 			Type: declaration.InterfaceType,
 		},
+		Configuration: cloneConfiguration(declaration.Configuration),
 	}
 
 	for _, value := range declaration.Values {
@@ -942,6 +968,25 @@ func (e *extractor) parseBindingCondition(call *ast.CallExpr, binding *goBinding
 	return condition, nil
 }
 
+func cloneConfiguration(config *Configuration) *Configuration {
+	if config == nil {
+		return nil
+	}
+	clone := &Configuration{}
+	if len(config.Env) > 0 {
+		clone.Env = append([]EnvInput(nil), config.Env...)
+	}
+	if len(config.Alternatives) > 0 {
+		clone.Alternatives = make([]ConfigurationAlternative, 0, len(config.Alternatives))
+		for _, alternative := range config.Alternatives {
+			clone.Alternatives = append(clone.Alternatives, ConfigurationAlternative{
+				Env: append([]EnvInput(nil), alternative.Env...),
+			})
+		}
+	}
+	return clone
+}
+
 func (d goBindingDeclaration) displayName() string {
 	if d.Function != "" {
 		return d.Function
@@ -950,6 +995,95 @@ func (d goBindingDeclaration) displayName() string {
 		return d.Method
 	}
 	return "declaration"
+}
+
+func (e *extractor) applyConfigurationOption(condition *Condition, optionName string, call *ast.CallExpr, imports importSet) (bool, error) {
+	switch optionName {
+	case "Env":
+		env, err := e.parseEnvInput(call, imports)
+		if err != nil {
+			return true, err
+		}
+		if condition.Configuration != nil && len(condition.Configuration.Alternatives) > 0 {
+			return true, fmt.Errorf("Env cannot be combined with EnvAlternative")
+		}
+		if condition.Configuration == nil {
+			condition.Configuration = &Configuration{}
+		}
+		condition.Configuration.Env = append(condition.Configuration.Env, env)
+		return true, nil
+	case "EnvAlternative":
+		alternative, err := e.parseEnvAlternative(call, imports)
+		if err != nil {
+			return true, err
+		}
+		if condition.Configuration != nil && len(condition.Configuration.Env) > 0 {
+			return true, fmt.Errorf("EnvAlternative cannot be combined with Env")
+		}
+		if condition.Configuration == nil {
+			condition.Configuration = &Configuration{}
+		}
+		condition.Configuration.Alternatives = append(condition.Configuration.Alternatives, alternative)
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func (e *extractor) parseEnvAlternative(call *ast.CallExpr, imports importSet) (ConfigurationAlternative, error) {
+	if len(call.Args) == 0 {
+		return ConfigurationAlternative{}, fmt.Errorf("EnvAlternative requires at least one Env")
+	}
+	alternative := ConfigurationAlternative{}
+	for _, arg := range call.Args {
+		subcall, ok := unparen(arg).(*ast.CallExpr)
+		if !ok {
+			return ConfigurationAlternative{}, fmt.Errorf("EnvAlternative arguments must be Env calls")
+		}
+		optionName, _, ok := callNameAndTypeArgs(subcall, imports)
+		if !ok || optionName != "Env" {
+			return ConfigurationAlternative{}, fmt.Errorf("EnvAlternative arguments must be Env calls")
+		}
+		env, err := e.parseEnvInput(subcall, imports)
+		if err != nil {
+			return ConfigurationAlternative{}, err
+		}
+		alternative.Env = append(alternative.Env, env)
+	}
+	return alternative, nil
+}
+
+func (e *extractor) parseEnvInput(call *ast.CallExpr, imports importSet) (EnvInput, error) {
+	if len(call.Args) < 2 {
+		return EnvInput{}, fmt.Errorf("Env requires property and name")
+	}
+	property, ok := e.stringValue(call.Args[0])
+	if !ok {
+		return EnvInput{}, fmt.Errorf("Env property must be a string literal or string const")
+	}
+	name, ok := e.stringValue(call.Args[1])
+	if !ok {
+		return EnvInput{}, fmt.Errorf("Env name must be a string literal or string const")
+	}
+	env := EnvInput{Property: property, Name: name}
+	for _, arg := range call.Args[2:] {
+		subcall, ok := unparen(arg).(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		optionName, _, ok := callNameAndTypeArgs(subcall, imports)
+		if !ok {
+			continue
+		}
+		switch optionName {
+		case "Sensitive":
+			env.Sensitive = true
+		case "Optional":
+			required := false
+			env.Required = &required
+		}
+	}
+	return env, nil
 }
 
 func (e *extractor) bindingValue(expr ast.Expr, imports goBindingImports, expected *goBinding) (string, bool) {
@@ -1016,6 +1150,13 @@ func (e *extractor) parseAPI(call *ast.CallExpr, imports importSet) (Condition, 
 		}
 		optionName, typeArgs, ok := callNameAndTypeArgs(subcall, imports)
 		if !ok {
+			continue
+		}
+
+		if handled, err := e.applyConfigurationOption(&condition, optionName, subcall, imports); handled {
+			if err != nil {
+				return Condition{}, err
+			}
 			continue
 		}
 
@@ -1140,6 +1281,12 @@ func (e *extractor) parseDatastore(call *ast.CallExpr, imports importSet) (Condi
 		if !ok {
 			continue
 		}
+		if handled, err := e.applyConfigurationOption(&condition, optionName, subcall, imports); handled {
+			if err != nil {
+				return Condition{}, err
+			}
+			continue
+		}
 		switch optionName {
 		case "Relational":
 			condition.Interface.Type = "relational"
@@ -1176,12 +1323,20 @@ func (e *extractor) parseCache(call *ast.CallExpr, imports importSet) (Condition
 			continue
 		}
 		optionName, _, ok := callNameAndTypeArgs(subcall, imports)
-		if !ok || optionName != "KeyValue" {
+		if !ok {
 			continue
 		}
-		condition.Interface.Type = "key_value"
-		if len(subcall.Args) > 0 {
-			condition.Interface.Engine = e.engineValue(subcall.Args[0], imports)
+		if handled, err := e.applyConfigurationOption(&condition, optionName, subcall, imports); handled {
+			if err != nil {
+				return Condition{}, err
+			}
+			continue
+		}
+		if optionName == "KeyValue" {
+			condition.Interface.Type = "key_value"
+			if len(subcall.Args) > 0 {
+				condition.Interface.Engine = e.engineValue(subcall.Args[0], imports)
+			}
 		}
 	}
 
@@ -1214,6 +1369,12 @@ func (e *extractor) parseMessageBus(call *ast.CallExpr, imports importSet) (Cond
 		}
 		optionName, _, ok := callNameAndTypeArgs(subcall, imports)
 		if !ok {
+			continue
+		}
+		if handled, err := e.applyConfigurationOption(&condition, optionName, subcall, imports); handled {
+			if err != nil {
+				return Condition{}, err
+			}
 			continue
 		}
 		switch optionName {

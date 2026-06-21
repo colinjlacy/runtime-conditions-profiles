@@ -7,7 +7,11 @@ on:
     paths:
       - ".github/workflows/publish-ghcr-images.yml"
       - "platform/kratix/promises/redis/pipeline/**"
+      - "platform/kratix/promises/cilium-api-access/pipeline/**"
+      - "platform/kratix/promises/cilium-namespace-lockdown/pipeline/**"
+      - "platform/kratix/promises/s3-bucket/pipeline/**"
       - "platform/kratix/promises/runtime-workload/pipeline/**"
+      - "demo/aws-sdk-go-v2/**"
       - "platform/demo/provider/todos-api/**"
       - "go/apps/request-logger-http/**"
       - "go/runtimeconditions/**"
@@ -30,6 +34,15 @@ jobs:
           - name: redis-pipeline
             context: platform/kratix/promises/redis/pipeline
             file: platform/kratix/promises/redis/pipeline/Dockerfile
+          - name: cilium-api-access-pipeline
+            context: platform/kratix/promises/cilium-api-access/pipeline
+            file: platform/kratix/promises/cilium-api-access/pipeline/Dockerfile
+          - name: cilium-namespace-lockdown-pipeline
+            context: platform/kratix/promises/cilium-namespace-lockdown/pipeline
+            file: platform/kratix/promises/cilium-namespace-lockdown/pipeline/Dockerfile
+          - name: s3-bucket-pipeline
+            context: platform/kratix/promises/s3-bucket/pipeline
+            file: platform/kratix/promises/s3-bucket/pipeline/Dockerfile
           - name: runtime-workload-pipeline
             context: platform/kratix/promises/runtime-workload/pipeline
             file: platform/kratix/promises/runtime-workload/pipeline/Dockerfile
@@ -37,7 +50,7 @@ jobs:
             context: platform/demo/provider/todos-api
             file: platform/demo/provider/todos-api/Dockerfile
           - name: request-logger
-            context: go
+            context: .
             file: go/apps/request-logger-http/Dockerfile
 
     steps:

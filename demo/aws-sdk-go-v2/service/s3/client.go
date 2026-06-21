@@ -5,7 +5,9 @@ package s3
 
 import (
 	"context"
+	"errors"
 	"io"
+	"os"
 )
 
 // Config represents SDK configuration.
@@ -34,5 +36,13 @@ type PutObjectOutput struct{}
 
 // PutObject stores an object in an S3 bucket.
 func (c *Client) PutObject(ctx context.Context, input *PutObjectInput, optFns ...func(*Options)) (*PutObjectOutput, error) {
+	if input == nil || input.Bucket == nil || *input.Bucket == "" {
+		return nil, errors.New("s3 bucket is required")
+	}
+	for _, key := range []string{"AWS_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"} {
+		if os.Getenv(key) == "" {
+			return nil, errors.New(key + " is not set")
+		}
+	}
 	return &PutObjectOutput{}, nil
 }

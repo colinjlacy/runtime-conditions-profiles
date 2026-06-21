@@ -28,6 +28,12 @@ This extension defines:
 - The `aws.s3` interface type
 - The `interface.bucketClass` field
 - The `standard` and `archive` bucket class values
+- S3-specific environment configuration properties for `bucket`, `region`, `accessKeyId`, `secretAccessKey`, and `sessionToken`
+
+This extension depends on:
+
+- `https://runtimeconditions.io/extensions/common-integrations:v1alpha1`
+- `https://runtimeconditions.io/extensions/env-configuration:v1alpha1`
 
 ---
 
@@ -40,7 +46,21 @@ conditions:
     interface:
       type: aws.s3
       bucketClass: archive
+    configuration:
+      env:
+        - property: bucket
+          name: AUDIT_LOG_BUCKET
+        - property: region
+          name: AWS_REGION
+        - property: accessKeyId
+          name: AWS_ACCESS_KEY_ID
+          sensitive: true
+        - property: secretAccessKey
+          name: AWS_SECRET_ACCESS_KEY
+          sensitive: true
 ```
+
+The `configuration` block names workload-facing environment variables only. It does not include bucket names, credential values, regions selected for a target environment, or other concrete fulfillment values.
 
 ---
 
@@ -69,8 +89,25 @@ go:
       name: s3-object-store
       kind: aws.object_store
       interfaceType: aws.s3
+      values:
+        - target: interface.bucketClass
+          value: standard
+      configuration:
+        env:
+          - property: bucket
+            name: AUDIT_LOG_BUCKET
+          - property: region
+            name: AWS_REGION
+          - property: accessKeyId
+            name: AWS_ACCESS_KEY_ID
+            sensitive: true
+          - property: secretAccessKey
+            name: AWS_SECRET_ACCESS_KEY
+            sensitive: true
 ```
 
 The application imports and calls the SDK normally. Runtime Conditions tooling
 reads the package manifest for direct imports and emits the profile condition
 without requiring application code to import a separate declaration package.
+
+In the Kratix demo, the runtime-workload adapter provisions an `S3Bucket` request. The S3Bucket Promise publishes non-sensitive connection properties through a ConfigMap and sensitive credential properties through a Secret. The adapter uses the profile's `configuration.env[].name` values to wire those provider outputs into the workload Deployment.

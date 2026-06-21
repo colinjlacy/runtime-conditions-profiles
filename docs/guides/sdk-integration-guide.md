@@ -132,6 +132,7 @@ metadata:
 spec:
   dependencies:
     - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 
   kinds:
     - name: aws.object_store
@@ -141,12 +142,13 @@ spec:
       targetKind: aws.object_store
 ```
 
-The SDK-owned extension definition should declare any first-party or third-party dependencies it relies on. For example, an AWS RDS extension that reuses common datastore vocabulary should declare a dependency on:
+The SDK-owned extension definition should declare any first-party or third-party dependencies it relies on. For example, an AWS RDS extension that reuses common datastore vocabulary and environment configuration should declare dependencies on:
 
 ```yaml
 spec:
   dependencies:
     - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 ```
 
 The SDK package should ship the extension definition it owns. It does not need to vendor every dependency extension file. Dependencies are resolved by validators, generators, or adapters through configured registries, caches, or local extension roots.
@@ -188,6 +190,18 @@ go:
       values:
         - target: interface.bucketClass
           value: standard
+      configuration:
+        env:
+          - property: bucket
+            name: AUDIT_LOG_BUCKET
+          - property: region
+            name: AWS_REGION
+          - property: accessKeyId
+            name: AWS_ACCESS_KEY_ID
+            sensitive: true
+          - property: secretAccessKey
+            name: AWS_SECRET_ACCESS_KEY
+            sensitive: true
 ```
 
 This manifest says:
@@ -197,6 +211,9 @@ This manifest says:
 - `NewFromConfig` creates a `Client`.
 - Calls to `Client.PutObject` imply an `aws.object_store` Condition with interface type `aws.s3`.
 - The generated Condition should include `interface.bucketClass: standard`.
+- The generated Condition should declare the environment variable names the workload expects for S3 connection and credential properties.
+
+The manifest does not provide values for `AUDIT_LOG_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, or `AWS_SECRET_ACCESS_KEY`. It only maps workload-facing environment variable names to extension-defined properties. A platform adapter is responsible for satisfying those properties from provider outputs such as ConfigMaps, Secrets, service bindings, cloud identity mechanisms, or generated credentials.
 
 ---
 
@@ -227,6 +244,7 @@ Expected generated profile fragment:
 ```yaml
 extensions:
   - https://aws.example.com/runtimeconditions/object-store:v1alpha1
+  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 
 conditions:
   - name: s3-object-store
@@ -234,6 +252,18 @@ conditions:
     interface:
       type: aws.s3
       bucketClass: standard
+    configuration:
+      env:
+        - property: bucket
+          name: AUDIT_LOG_BUCKET
+        - property: region
+          name: AWS_REGION
+        - property: accessKeyId
+          name: AWS_ACCESS_KEY_ID
+          sensitive: true
+        - property: secretAccessKey
+          name: AWS_SECRET_ACCESS_KEY
+          sensitive: true
 ```
 
 These fixtures are important because package manifests are executable only through generator behavior. A manifest that validates structurally but never maps real SDK source code is not useful.
@@ -248,6 +278,7 @@ Before publishing Runtime Conditions metadata, SDK authors SHOULD verify:
 - The package includes the extension definition referenced by the manifest.
 - The extension identifier in the manifest matches `<metadata.uri>:<metadata.version>` in the extension file.
 - The extension declares all vocabulary dependencies.
+- Any manifest `configuration` shape is defined by a declared extension dependency.
 - The manifest maps real SDK symbols, not internal implementation details that users never call.
 - Generated Conditions do not contain secrets or concrete target-environment values.
 - Repeated calls deduplicate or aggregate into stable Conditions according to the generator's documented behavior.

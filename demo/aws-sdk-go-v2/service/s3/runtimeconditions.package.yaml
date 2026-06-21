@@ -26,3 +26,15 @@ go:
       values:
         - target: interface.bucketClass
           value: standard
+      configuration:
+        env:
+          - property: bucket
+            name: AUDIT_LOG_BUCKET
+          - property: region
+            name: AWS_REGION
+          - property: accessKeyId
+            name: AWS_ACCESS_KEY_ID
+            sensitive: true
+          - property: secretAccessKey
+            name: AWS_SECRET_ACCESS_KEY
+            sensitive: true

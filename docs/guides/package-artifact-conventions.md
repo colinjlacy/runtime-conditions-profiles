@@ -101,6 +101,18 @@ go:
       values:
         - target: interface.bucketClass
           value: standard
+      configuration:
+        env:
+          - property: bucket
+            name: AUDIT_LOG_BUCKET
+          - property: region
+            name: AWS_REGION
+          - property: accessKeyId
+            name: AWS_ACCESS_KEY_ID
+            sensitive: true
+          - property: secretAccessKey
+            name: AWS_SECRET_ACCESS_KEY
+            sensitive: true
 ```
 
 Fields:
@@ -132,6 +144,7 @@ Declaration fields:
 | `interfaceType` | YES | `interface.type` value |
 | `values` | NO | Static field values to include in the generated Condition |
 | `options` | NO | Nested function calls that provide field values |
+| `configuration` | NO | Static workload-facing configuration mappings to include in the generated Condition |
 
 At least one of `method` or `function` must be present. A declaration should provide either `name` or `nameArg`.
 
@@ -153,6 +166,8 @@ options:
 ```
 
 Nested options are useful for no-op declaration packages. SDK operation manifests usually prefer static values or future language-specific extraction rules.
+
+Configuration mappings let SDK authors surface hidden SDK inputs without emitting concrete values. For example, an SDK can state that generated S3 Conditions require a `bucket`, `region`, `accessKeyId`, and `secretAccessKey`, and can name the environment variables that the workload expects for those inputs. The generated profile carries the names; adapters map those properties to platform-provided ConfigMaps, Secrets, service URLs, or other delivery mechanisms.
 
 ---
 
@@ -254,12 +269,15 @@ The extension definition owns vocabulary and dependencies:
 spec:
   dependencies:
     - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 
   kinds:
     - name: aws.object_store
 ```
 
 The package manifest maps source symbols to that vocabulary. It does not define vocabulary itself.
+
+If a package manifest emits `configuration`, the extension definition should depend on `https://runtimeconditions.io/extensions/env-configuration:v1alpha1` or another extension that defines the configuration shape it uses.
 
 ---
 
