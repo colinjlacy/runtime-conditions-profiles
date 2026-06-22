@@ -35,7 +35,7 @@ def main() -> int:
                 "app.kubernetes.io/name": name,
                 "app.kubernetes.io/component": "network-policy",
                 "app.kubernetes.io/managed-by": "kratix",
-                "runtimeconditions.io/policy-type": "namespace-lockdown",
+                "platform.demoteam.dev/policy-type": "namespace-lockdown",
             },
         },
         "spec": {

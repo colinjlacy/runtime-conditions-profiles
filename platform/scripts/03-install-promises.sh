@@ -12,7 +12,7 @@ require_kubectl_context
 [[ -n "${CILIUM_API_ACCESS_PIPELINE_IMAGE:-}" ]] || fail "CILIUM_API_ACCESS_PIPELINE_IMAGE is not set; run 02-build-and-push-images.sh first"
 [[ -n "${CILIUM_NAMESPACE_LOCKDOWN_PIPELINE_IMAGE:-}" ]] || fail "CILIUM_NAMESPACE_LOCKDOWN_PIPELINE_IMAGE is not set; run 02-build-and-push-images.sh first"
 [[ -n "${S3_BUCKET_PIPELINE_IMAGE:-}" ]] || fail "S3_BUCKET_PIPELINE_IMAGE is not set; run 02-build-and-push-images.sh first"
-[[ -n "${RUNTIME_WORKLOAD_PIPELINE_IMAGE:-}" ]] || fail "RUNTIME_WORKLOAD_PIPELINE_IMAGE is not set; run 02-build-and-push-images.sh first"
+[[ -n "${APPLICATION_RELEASE_PIPELINE_IMAGE:-}" ]] || fail "APPLICATION_RELEASE_PIPELINE_IMAGE is not set; run 02-build-and-push-images.sh first"
 
 kubectl create namespace "${DEMO_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${CATALOG_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
@@ -21,7 +21,7 @@ REDIS_PROMISE="${BUILD_DIR}/redis-promise.yaml"
 CILIUM_API_ACCESS_PROMISE="${BUILD_DIR}/cilium-api-access-promise.yaml"
 CILIUM_NAMESPACE_LOCKDOWN_PROMISE="${BUILD_DIR}/cilium-namespace-lockdown-promise.yaml"
 S3_BUCKET_PROMISE="${BUILD_DIR}/s3-bucket-promise.yaml"
-RUNTIME_WORKLOAD_PROMISE="${BUILD_DIR}/runtime-workload-promise.yaml"
+APPLICATION_RELEASE_PROMISE="${BUILD_DIR}/application-release-promise.yaml"
 
 render_template \
   "${PLATFORM_DIR}/kratix/promises/redis/promise.yaml.tmpl" \
@@ -44,30 +44,30 @@ render_template \
   S3_BUCKET_PIPELINE_IMAGE "${S3_BUCKET_PIPELINE_IMAGE}"
 
 render_template \
-  "${PLATFORM_DIR}/kratix/promises/runtime-workload/promise.yaml.tmpl" \
-  "${RUNTIME_WORKLOAD_PROMISE}" \
-  RUNTIME_WORKLOAD_PIPELINE_IMAGE "${RUNTIME_WORKLOAD_PIPELINE_IMAGE}" \
+  "${PLATFORM_DIR}/kratix/promises/application-release/promise.yaml.tmpl" \
+  "${APPLICATION_RELEASE_PROMISE}" \
+  APPLICATION_RELEASE_PIPELINE_IMAGE "${APPLICATION_RELEASE_PIPELINE_IMAGE}" \
   CATALOG_NAMESPACE "${CATALOG_NAMESPACE}"
 
 log "Installing Redis Promise"
 kubectl apply -f "${REDIS_PROMISE}"
-wait_for_crd redis.runtimeconditions.io
+wait_for_crd redis.platform.demoteam.dev
 
 log "Installing CiliumAPIAccess Promise"
 kubectl apply -f "${CILIUM_API_ACCESS_PROMISE}"
-wait_for_crd ciliumapiaccesses.runtimeconditions.io
+wait_for_crd ciliumapiaccesses.platform.demoteam.dev
 
 log "Installing CiliumNamespaceLockdown Promise"
 kubectl apply -f "${CILIUM_NAMESPACE_LOCKDOWN_PROMISE}"
-wait_for_crd ciliumnamespacelockdowns.runtimeconditions.io
+wait_for_crd ciliumnamespacelockdowns.platform.demoteam.dev
 
 log "Installing S3Bucket Promise"
 kubectl apply -f "${S3_BUCKET_PROMISE}"
-wait_for_crd s3buckets.runtimeconditions.io
+wait_for_crd s3buckets.platform.demoteam.dev
 
-log "Installing RuntimeWorkload Promise"
-kubectl apply -f "${RUNTIME_WORKLOAD_PROMISE}"
-wait_for_crd runtimeworkloads.runtimeconditions.io
+log "Installing ApplicationRelease Promise"
+kubectl apply -f "${APPLICATION_RELEASE_PROMISE}"
+wait_for_crd applicationreleases.platform.demoteam.dev
 
-log "Runtime Conditions Promises are installed"
+log "demoteam platform Promises are installed"
 kubectl get crds -l kratix.io/promise-name

@@ -55,7 +55,7 @@ def provision(request: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, 
         "app.kubernetes.io/name": name,
         "app.kubernetes.io/component": "object-store",
         "app.kubernetes.io/managed-by": "kratix",
-        "runtimeconditions.io/object-store-interface": "aws.s3",
+        "platform.demoteam.dev/object-store-interface": "aws.s3",
     }
 
     connection_config = {
@@ -190,9 +190,9 @@ def ensure_iam_user(iam: Any, user_name: str, namespace: str, resource_name: str
         iam.create_user(
             UserName=user_name,
             Tags=[
-                {"Key": "managed-by", "Value": "runtimeconditions-kratix-demo"},
-                {"Key": "runtimeconditions-namespace", "Value": namespace},
-                {"Key": "runtimeconditions-resource", "Value": resource_name},
+                {"Key": "managed-by", "Value": "demoteam-platform"},
+                {"Key": "demoteam-namespace", "Value": namespace},
+                {"Key": "demoteam-resource", "Value": resource_name},
             ],
         )
 
@@ -223,7 +223,7 @@ def ensure_bucket_policy(iam: Any, user_name: str, bucket: str) -> None:
     }
     iam.put_user_policy(
         UserName=user_name,
-        PolicyName="runtimeconditions-s3-access",
+        PolicyName="demoteam-s3-access",
         PolicyDocument=json.dumps(policy_document),
     )
 
@@ -295,7 +295,7 @@ def s3_access_policy(
                 "app.kubernetes.io/name": policy_name,
                 "app.kubernetes.io/component": "network-policy",
                 "app.kubernetes.io/managed-by": "kratix",
-                "runtimeconditions.io/policy-type": "object-store-access",
+                "platform.demoteam.dev/policy-type": "object-store-access",
             },
         },
         "spec": {

@@ -66,7 +66,7 @@ The workflow at `.github/workflows/publish-ghcr-images.yml` builds and pushes pu
 - `cilium-api-access-pipeline`
 - `cilium-namespace-lockdown-pipeline`
 - `s3-bucket-pipeline`
-- `runtime-workload-pipeline`
+- `application-release-pipeline`
 - `todos-api`
 - `request-logger`
 
@@ -77,7 +77,7 @@ ghcr.io/<owner>/<repo>-redis-pipeline:<tag>
 ghcr.io/<owner>/<repo>-cilium-api-access-pipeline:<tag>
 ghcr.io/<owner>/<repo>-cilium-namespace-lockdown-pipeline:<tag>
 ghcr.io/<owner>/<repo>-s3-bucket-pipeline:<tag>
-ghcr.io/<owner>/<repo>-runtime-workload-pipeline:<tag>
+ghcr.io/<owner>/<repo>-application-release-pipeline:<tag>
 ghcr.io/<owner>/<repo>-todos-api:<tag>
 ghcr.io/<owner>/<repo>-request-logger:<tag>
 ```
@@ -96,7 +96,7 @@ IMAGE_REGISTRY=registry.example.com/runtimeconditions IMAGE_TAG=dev platform/scr
 platform/scripts/07-demo-breaking-change.sh
 ```
 
-That script swaps the catalog to an incompatible OpenAPI document and submits a separate `RuntimeWorkload` request named `request-logger-breaking`. The resolver should fail before writing a Deployment for that request.
+That script swaps the catalog to an incompatible OpenAPI document and submits a separate `ApplicationRelease` request named `request-logger-breaking`. The resolver should fail before writing a Deployment for that request.
 
 ## Useful Environment Variables
 
@@ -109,27 +109,29 @@ That script swaps the catalog to an incompatible OpenAPI document and submits a 
 | `GHCR_OWNER` | inferred from git remote | GHCR namespace owner |
 | `GHCR_REPOSITORY` | inferred from git remote | Repository name used in GHCR package names |
 | `TARGET_PLATFORM` | `linux/amd64` | Docker build platform |
-| `APP_NAME` | `request-logger` | RuntimeWorkload and Deployment name |
+| `APP_NAME` | `request-logger` | ApplicationRelease and Deployment name |
 | `APP_SOURCE_DIR` | `go/apps/request-logger-http` | Source scanned by the AST profiler |
-| `APP_IMAGE` | generated request logger image | Consumer image deployed by `RuntimeWorkload` |
+| `APP_IMAGE` | generated request logger image | Consumer image deployed by `ApplicationRelease` |
 
 ## What Gets Installed
 
 - Kratix quick-start stack in `kratix-platform-system`
-- `runtimeconditions.io/v1alpha1, Kind=Redis` Promise
-- `runtimeconditions.io/v1alpha1, Kind=CiliumAPIAccess` Promise
-- `runtimeconditions.io/v1alpha1, Kind=CiliumNamespaceLockdown` Promise
-- `runtimeconditions.io/v1alpha1, Kind=S3Bucket` Promise
-- `runtimeconditions.io/v1alpha1, Kind=RuntimeWorkload` Promise
+- `platform.demoteam.dev/v1alpha1, Kind=Redis` Promise
+- `platform.demoteam.dev/v1alpha1, Kind=CiliumAPIAccess` Promise
+- `platform.demoteam.dev/v1alpha1, Kind=CiliumNamespaceLockdown` Promise
+- `platform.demoteam.dev/v1alpha1, Kind=S3Bucket` Promise
+- `platform.demoteam.dev/v1alpha1, Kind=ApplicationRelease` Promise
 - Backstage-compatible API catalog ConfigMap for `todos-api`
 - In-cluster `todos-api` provider Deployment and Service
-- A `RuntimeWorkload` request generated from source-derived Runtime Conditions
+- An `ApplicationRelease` request generated from source-derived Runtime Conditions
+
+The `platform.demoteam.dev` API group is a fake platform-team namespace for the demo's Kratix APIs. It is deliberately separate from the Runtime Conditions Profile API so provider Promises can exist independently of the profile specification.
 
 ## Environment Injection Contract
 
 The generated Runtime Conditions Profile declares workload-facing environment variable names in `configuration.env`. It does not include the values for those variables.
 
-The `RuntimeWorkload` Promise adapter maps declared properties to provider outputs:
+The `ApplicationRelease` Promise adapter maps declared properties to provider outputs:
 
 | Profile property | Demo provider output |
 | --- | --- |
@@ -138,7 +140,7 @@ The `RuntimeWorkload` Promise adapter maps declared properties to provider outpu
 | S3 `bucket`, `region` | S3Bucket Promise connection ConfigMap backed by a real AWS S3 bucket |
 | S3 `accessKeyId`, `secretAccessKey` | S3Bucket Promise credentials Secret backed by a bucket-scoped IAM access key |
 
-This keeps the Kratix Promises reusable outside the adapter. The Redis and S3Bucket Promises publish generic connection artifacts, while the RuntimeWorkload adapter performs the profile-specific binding into a Kubernetes `Deployment`.
+This keeps the Kratix Promises reusable outside the adapter. The Redis and S3Bucket Promises publish generic connection artifacts, while the ApplicationRelease adapter performs the profile-specific binding into a Kubernetes `Deployment`.
 
 ## API Network Policy Contract
 
@@ -154,9 +156,9 @@ The `CiliumAPIAccess` interface accepts:
 - `destination.port`
 - HTTP `rules` containing only `method` and `path`
 
-The RuntimeWorkload adapter creates one `CiliumAPIAccess` request for each API Condition with declared HTTP operations. The Promise renders a `CiliumNetworkPolicy` with L7 HTTP egress rules derived from those declared methods and paths.
+The ApplicationRelease adapter creates one `CiliumAPIAccess` request for each API Condition with declared HTTP operations. The Promise renders a `CiliumNetworkPolicy` with L7 HTTP egress rules derived from those declared methods and paths.
 
-Redis and S3Bucket requests also receive the workload selector from the RuntimeWorkload adapter. Their Promises render dependency-specific Cilium policies:
+Redis and S3Bucket requests also receive the workload selector from the ApplicationRelease adapter. Their Promises render dependency-specific Cilium policies:
 
 - Redis: egress from the workload to Redis on TCP/6379, plus Redis ingress from that workload
 - S3Bucket: egress from the workload to the bucket's regional S3 FQDNs on TCP/443

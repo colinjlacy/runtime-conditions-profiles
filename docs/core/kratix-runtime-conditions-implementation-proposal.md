@@ -66,7 +66,7 @@ That command should:
 
 1. run the Go or Python AST profiler
 2. generate a Runtime Conditions Profile
-3. create or update a Kratix `RuntimeWorkload` resource request
+3. create or update a Kratix `ApplicationRelease` resource request
 4. wait for Kratix workflow completion
 5. wait for the application Deployment to become available
 6. run a smoke test against the deployed app
@@ -74,7 +74,7 @@ That command should:
 A successful demo should end with evidence from Kubernetes, not just generated files:
 
 ```bash
-kubectl get runtimeworkload request-logger -n demo
+kubectl get applicationrelease request-logger -n demo
 kubectl get redis request-logger-cache -n demo
 kubectl get deployment request-logger -n demo
 kubectl port-forward svc/request-logger 8080:8080 -n demo
@@ -97,8 +97,8 @@ flowchart LR
   A["Application source code"] --> B["AST profiler"]
   B --> C["Runtime Conditions Profile"]
   C --> D["rc deploy CLI"]
-  D --> E["Kratix RuntimeWorkload request"]
-  E --> F["RuntimeWorkload Promise workflow"]
+  D --> E["Kratix ApplicationRelease request"]
+  E --> F["ApplicationRelease Promise workflow"]
   F --> G["OpenAPI validation"]
   F --> H["Redis Promise request"]
   F --> I["Application Deployment and Service"]
@@ -125,8 +125,8 @@ The first implementation needs four platform-side pieces.
 | Component | Purpose |
 | --- | --- |
 | `Redis` Promise | Provisions a real Redis Deployment and Service in Kubernetes |
-| `RuntimeWorkload` Promise | Accepts a Runtime Conditions Profile and deploys the application |
-| Runtime Conditions resolver image | Runs inside the `RuntimeWorkload` workflow |
+| `ApplicationRelease` Promise | Accepts a Runtime Conditions Profile and deploys the application |
+| `ApplicationRelease` resolver image | Runs inside the `ApplicationRelease` workflow |
 | API catalog bundle | Stores Backstage-compatible API entities and OpenAPI documents |
 
 ## Application Components
@@ -213,7 +213,7 @@ The first resource Promise should be deliberately simple.
 The `Redis` Promise should expose a namespaced resource:
 
 ```yaml
-apiVersion: runtimeconditions.io/v1alpha1
+apiVersion: platform.demoteam.dev/v1alpha1
 kind: Redis
 metadata:
   name: request-logger-cache
@@ -240,15 +240,15 @@ connectionDetails:
 
 For the demo, this can be an in-cluster Redis deployment. Later, the same Promise API can be reimplemented to provision ElastiCache, MemoryDB, or a Crossplane-managed Redis-compatible resource.
 
-## Kratix `RuntimeWorkload` Promise
+## Kratix `ApplicationRelease` Promise
 
-The `RuntimeWorkload` Promise is the main integration point.
+The `ApplicationRelease` Promise is the main integration point.
 
 It should expose a namespaced resource:
 
 ```yaml
-apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeWorkload
+apiVersion: platform.demoteam.dev/v1alpha1
+kind: ApplicationRelease
 metadata:
   name: request-logger
   namespace: demo
@@ -352,7 +352,7 @@ Request body compatibility can be added in the same pattern once the demo includ
 
 ## Application Deployment Generation
 
-If API validation passes, the `RuntimeWorkload` workflow emits:
+If API validation passes, the `ApplicationRelease` workflow emits:
 
 - a Redis resource request for each Redis cache condition
 - a Kubernetes `Deployment`
@@ -387,7 +387,7 @@ make smoke-test
 Expected visible results:
 
 ```bash
-kubectl get runtimeworkload request-logger -n demo
+kubectl get applicationrelease request-logger -n demo
 kubectl get redis request-logger-cache -n demo
 kubectl get deployment request-logger -n demo
 kubectl get pods -n demo
@@ -439,8 +439,8 @@ The Kratix workflow should fail before writing the application Deployment to `/k
 The platform engineer should be able to inspect the failure with:
 
 ```bash
-kubectl describe runtimeworkload request-logger -n demo
-kubectl get pods -n demo -l kratix.io/promise-name=runtime-workload
+kubectl describe applicationrelease request-logger -n demo
+kubectl get pods -n demo -l kratix.io/promise-name=application-release
 kubectl logs <workflow-pod> -n demo
 ```
 
@@ -460,7 +460,7 @@ platform/
         pipeline/
           Dockerfile
           configure.py
-      runtime-workload/
+      application-release/
         promise.yaml
         pipeline/
           Dockerfile
@@ -499,7 +499,7 @@ It should:
 1. detect Go or Python source
 2. run the correct AST profiler
 3. produce the Runtime Conditions Profile
-4. create the `RuntimeWorkload` request
+4. create the `ApplicationRelease` request
 5. apply it with `kubectl`
 6. wait for Kratix workflow completion
 7. wait for the app Deployment
@@ -546,11 +546,11 @@ kubectl wait redis/request-logger-cache -n demo \
 kubectl get svc request-logger-cache -n demo
 ```
 
-### Milestone 3: RuntimeWorkload Promise
+### Milestone 3: ApplicationRelease Promise
 
 Deliverables:
 
-- `RuntimeWorkload` Promise
+- `ApplicationRelease` Promise
 - resolver workflow image
 - support for embedded Runtime Conditions Profile
 - generated app Deployment and Service
@@ -558,8 +558,8 @@ Deliverables:
 Acceptance criteria:
 
 ```bash
-kubectl apply -f examples/runtimeworkload-request.yaml
-kubectl wait runtimeworkload/request-logger -n demo \
+kubectl apply -f examples/applicationrelease-request.yaml
+kubectl wait applicationrelease/request-logger -n demo \
   --for=condition=ConfigureWorkflowCompleted \
   --timeout=120s
 kubectl get deployment request-logger -n demo
@@ -586,7 +586,7 @@ Acceptance criteria:
 Deliverables:
 
 - provider API deployed in Kubernetes
-- consumer app deployed through `RuntimeWorkload`
+- consumer app deployed through `ApplicationRelease`
 - Redis provisioned through Kratix
 - smoke test script
 
@@ -619,7 +619,7 @@ make demo-breaking-change
 
 Results in:
 
-- RuntimeWorkload workflow failure
+- ApplicationRelease workflow failure
 - app deployment blocked
 - clear contract mismatch in logs/status
 
@@ -671,7 +671,7 @@ This is enough to prove value. More complete JSON Schema and OpenAPI compatibili
 
 The generated Deployment should rely on app readiness probes to avoid reporting success before Redis or the API provider is reachable.
 
-This avoids needing the RuntimeWorkload workflow to synchronously wait for every generated sub-resource before writing the app manifests.
+This avoids needing the ApplicationRelease workflow to synchronously wait for every generated sub-resource before writing the app manifests.
 
 ## Follow-On Integrations
 

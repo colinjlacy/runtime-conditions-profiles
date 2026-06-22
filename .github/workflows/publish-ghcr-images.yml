@@ -10,7 +10,7 @@ on:
       - "platform/kratix/promises/cilium-api-access/pipeline/**"
       - "platform/kratix/promises/cilium-namespace-lockdown/pipeline/**"
       - "platform/kratix/promises/s3-bucket/pipeline/**"
-      - "platform/kratix/promises/runtime-workload/pipeline/**"
+      - "platform/kratix/promises/application-release/pipeline/**"
       - "demo/aws-sdk-go-v2/**"
       - "platform/demo/provider/todos-api/**"
       - "go/apps/request-logger-http/**"
@@ -43,9 +43,9 @@ jobs:
           - name: s3-bucket-pipeline
             context: platform/kratix/promises/s3-bucket/pipeline
             file: platform/kratix/promises/s3-bucket/pipeline/Dockerfile
-          - name: runtime-workload-pipeline
-            context: platform/kratix/promises/runtime-workload/pipeline
-            file: platform/kratix/promises/runtime-workload/pipeline/Dockerfile
+          - name: application-release-pipeline
+            context: platform/kratix/promises/application-release/pipeline
+            file: platform/kratix/promises/application-release/pipeline/Dockerfile
           - name: todos-api
             context: platform/demo/provider/todos-api
             file: platform/demo/provider/todos-api/Dockerfile

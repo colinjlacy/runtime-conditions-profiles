@@ -25,7 +25,7 @@ kubectl -n "${CATALOG_NAMESPACE}" create configmap "${CATALOG_CONFIGMAP}" \
   --from-file="${CATALOG_BUILD_DIR}/todos.openapi.yaml" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-log "Submitting a separate RuntimeWorkload expected to fail contract validation"
+log "Submitting a separate ApplicationRelease expected to fail contract validation"
 set +e
 REQUEST_NAME="${BREAKING_NAME}" \
 REQUEST_NAMESPACE="${BREAKING_NAMESPACE}" \
@@ -40,9 +40,9 @@ if [[ "${DEPLOY_STATUS}" -eq 0 ]]; then
   fail "breaking OpenAPI deployment unexpectedly succeeded"
 fi
 
-log "RuntimeWorkload failed as expected. Recent workflow logs:"
-kubectl -n "${BREAKING_NAMESPACE}" get pods -l kratix.io/promise-name=runtime-workload || true
-for pod in $(kubectl -n "${BREAKING_NAMESPACE}" get pods -l kratix.io/promise-name=runtime-workload -o name 2>/dev/null | tail -n 3); do
+log "ApplicationRelease failed as expected. Recent workflow logs:"
+kubectl -n "${BREAKING_NAMESPACE}" get pods -l kratix.io/promise-name=application-release || true
+for pod in $(kubectl -n "${BREAKING_NAMESPACE}" get pods -l kratix.io/promise-name=application-release -o name 2>/dev/null | tail -n 3); do
   log "Logs for ${pod}"
   kubectl -n "${BREAKING_NAMESPACE}" logs "${pod}" --all-containers=true --tail=120 || true
 done
@@ -51,4 +51,3 @@ log "Restoring compatible API catalog bundle"
 "${SCRIPT_DIR}/04-deploy-catalog-and-provider.sh"
 
 log "Breaking change demo completed"
-

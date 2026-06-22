@@ -87,7 +87,7 @@ def render_policy(request: dict[str, Any]) -> tuple[dict[str, Any], dict[str, An
         "app.kubernetes.io/name": name,
         "app.kubernetes.io/component": "network-policy",
         "app.kubernetes.io/managed-by": "kratix",
-        "runtimeconditions.io/policy-type": "api-access",
+        "platform.demoteam.dev/policy-type": "api-access",
     }
     policy: dict[str, Any] = {
         "apiVersion": "cilium.io/v2",

@@ -16,7 +16,7 @@ if [[ -n "${IMAGE_REGISTRY:-}" ]]; then
   CILIUM_API_ACCESS_PIPELINE_IMAGE="${CILIUM_API_ACCESS_PIPELINE_IMAGE:-${IMAGE_PREFIX}/cilium-api-access-pipeline:${IMAGE_TAG}}"
   CILIUM_NAMESPACE_LOCKDOWN_PIPELINE_IMAGE="${CILIUM_NAMESPACE_LOCKDOWN_PIPELINE_IMAGE:-${IMAGE_PREFIX}/cilium-namespace-lockdown-pipeline:${IMAGE_TAG}}"
   S3_BUCKET_PIPELINE_IMAGE="${S3_BUCKET_PIPELINE_IMAGE:-${IMAGE_PREFIX}/s3-bucket-pipeline:${IMAGE_TAG}}"
-  RUNTIME_WORKLOAD_PIPELINE_IMAGE="${RUNTIME_WORKLOAD_PIPELINE_IMAGE:-${IMAGE_PREFIX}/runtime-workload-pipeline:${IMAGE_TAG}}"
+  APPLICATION_RELEASE_PIPELINE_IMAGE="${APPLICATION_RELEASE_PIPELINE_IMAGE:-${IMAGE_PREFIX}/application-release-pipeline:${IMAGE_TAG}}"
   TODOS_API_IMAGE="${TODOS_API_IMAGE:-${IMAGE_PREFIX}/todos-api:${IMAGE_TAG}}"
   REQUEST_LOGGER_IMAGE="${REQUEST_LOGGER_IMAGE:-${IMAGE_PREFIX}/request-logger:${IMAGE_TAG}}"
 else
@@ -28,7 +28,7 @@ else
   CILIUM_API_ACCESS_PIPELINE_IMAGE="${CILIUM_API_ACCESS_PIPELINE_IMAGE:-ttl.sh/runtimeconditions-${TTL_NAME}-${TTL_STAMP}-cilium-api-access-pipeline:${IMAGE_TAG}}"
   CILIUM_NAMESPACE_LOCKDOWN_PIPELINE_IMAGE="${CILIUM_NAMESPACE_LOCKDOWN_PIPELINE_IMAGE:-ttl.sh/runtimeconditions-${TTL_NAME}-${TTL_STAMP}-cilium-namespace-lockdown-pipeline:${IMAGE_TAG}}"
   S3_BUCKET_PIPELINE_IMAGE="${S3_BUCKET_PIPELINE_IMAGE:-ttl.sh/runtimeconditions-${TTL_NAME}-${TTL_STAMP}-s3-bucket-pipeline:${IMAGE_TAG}}"
-  RUNTIME_WORKLOAD_PIPELINE_IMAGE="${RUNTIME_WORKLOAD_PIPELINE_IMAGE:-ttl.sh/runtimeconditions-${TTL_NAME}-${TTL_STAMP}-runtime-workload-pipeline:${IMAGE_TAG}}"
+  APPLICATION_RELEASE_PIPELINE_IMAGE="${APPLICATION_RELEASE_PIPELINE_IMAGE:-ttl.sh/runtimeconditions-${TTL_NAME}-${TTL_STAMP}-application-release-pipeline:${IMAGE_TAG}}"
   TODOS_API_IMAGE="${TODOS_API_IMAGE:-ttl.sh/runtimeconditions-${TTL_NAME}-${TTL_STAMP}-todos-api:${IMAGE_TAG}}"
   REQUEST_LOGGER_IMAGE="${REQUEST_LOGGER_IMAGE:-ttl.sh/runtimeconditions-${TTL_NAME}-${TTL_STAMP}-request-logger:${IMAGE_TAG}}"
 fi
@@ -64,9 +64,9 @@ build_and_push \
   "${PLATFORM_DIR}/kratix/promises/s3-bucket/pipeline"
 
 build_and_push \
-  "${RUNTIME_WORKLOAD_PIPELINE_IMAGE}" \
-  "${PLATFORM_DIR}/kratix/promises/runtime-workload/pipeline/Dockerfile" \
-  "${PLATFORM_DIR}/kratix/promises/runtime-workload/pipeline"
+  "${APPLICATION_RELEASE_PIPELINE_IMAGE}" \
+  "${PLATFORM_DIR}/kratix/promises/application-release/pipeline/Dockerfile" \
+  "${PLATFORM_DIR}/kratix/promises/application-release/pipeline"
 
 build_and_push \
   "${TODOS_API_IMAGE}" \

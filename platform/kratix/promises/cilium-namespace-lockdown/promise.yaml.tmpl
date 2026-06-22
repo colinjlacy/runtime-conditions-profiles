@@ -1,7 +1,7 @@
 apiVersion: platform.kratix.io/v1alpha1
 kind: Promise
 metadata:
-  name: cilium-namespace-lockdown
+  name: ns-lockdown
   labels:
     kratix.io/promise-version: v0.1.0
 spec:
@@ -9,9 +9,9 @@ spec:
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     metadata:
-      name: ciliumnamespacelockdowns.runtimeconditions.io
+      name: ciliumnamespacelockdowns.platform.demoteam.dev
     spec:
-      group: runtimeconditions.io
+      group: platform.demoteam.dev
       names:
         kind: CiliumNamespaceLockdown
         plural: ciliumnamespacelockdowns
@@ -39,7 +39,7 @@ spec:
         - apiVersion: platform.kratix.io/v1alpha1
           kind: Pipeline
           metadata:
-            name: configure-cilium-namespace-lockdown
+            name: configure-ns-lockdown
           spec:
             containers:
               - name: configure

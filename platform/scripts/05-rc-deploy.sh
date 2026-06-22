@@ -18,7 +18,7 @@ REQUEST_NAMESPACE="${REQUEST_NAMESPACE:-${DEMO_NAMESPACE}}"
 [[ -n "${APP_IMAGE}" ]] || fail "APP_IMAGE is not set; run 02-build-and-push-images.sh first or set APP_IMAGE"
 
 PROFILE_FILE="${BUILD_DIR}/${REQUEST_NAME}-profile.yaml"
-REQUEST_FILE="${BUILD_DIR}/${REQUEST_NAME}-runtimeworkload.yaml"
+REQUEST_FILE="${BUILD_DIR}/${REQUEST_NAME}-applicationrelease.yaml"
 
 contains_files() {
   local pattern="$1"
@@ -48,11 +48,11 @@ else
   fail "could not detect Go or Python source in ${APP_SOURCE_DIR}"
 fi
 
-log "Writing RuntimeWorkload request"
+log "Writing ApplicationRelease request"
 {
   cat <<EOF
-apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeWorkload
+apiVersion: platform.demoteam.dev/v1alpha1
+kind: ApplicationRelease
 metadata:
   name: ${REQUEST_NAME}
   namespace: ${REQUEST_NAMESPACE}
@@ -71,16 +71,16 @@ EOF
 
 kubectl create namespace "${REQUEST_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
-log "Submitting RuntimeWorkload request through Kratix"
+log "Submitting ApplicationRelease request through Kratix"
 kubectl apply -f "${REQUEST_FILE}"
 
-log "Waiting for RuntimeWorkload configure workflow"
-kubectl -n "${REQUEST_NAMESPACE}" wait "runtimeworkload/${REQUEST_NAME}" \
+log "Waiting for ApplicationRelease configure workflow"
+kubectl -n "${REQUEST_NAMESPACE}" wait "applicationrelease/${REQUEST_NAME}" \
   --for=condition=ConfigureWorkflowCompleted \
   --timeout=180s
 
 log "Waiting for generated Cilium namespace lockdown request"
-kubectl -n "${REQUEST_NAMESPACE}" wait "ciliumnamespacelockdown/runtimeconditions-lockdown" \
+kubectl -n "${REQUEST_NAMESPACE}" wait "ciliumnamespacelockdown/namespace-lockdown" \
   --for=condition=ConfigureWorkflowCompleted \
   --timeout=180s
 
@@ -102,8 +102,8 @@ kubectl -n "${REQUEST_NAMESPACE}" wait "s3bucket/${REQUEST_NAME}-object-store" \
 log "Waiting for generated application Deployment"
 wait_for_deployment "${REQUEST_NAMESPACE}" "${REQUEST_NAME}" 240s
 
-kubectl -n "${REQUEST_NAMESPACE}" get runtimeworkload "${REQUEST_NAME}"
-kubectl -n "${REQUEST_NAMESPACE}" get ciliumnamespacelockdown runtimeconditions-lockdown
+kubectl -n "${REQUEST_NAMESPACE}" get applicationrelease "${REQUEST_NAME}"
+kubectl -n "${REQUEST_NAMESPACE}" get ciliumnamespacelockdown namespace-lockdown
 kubectl -n "${REQUEST_NAMESPACE}" get ciliumapiaccess "${REQUEST_NAME}-todos-api-access"
 kubectl -n "${REQUEST_NAMESPACE}" get redis "${REQUEST_NAME}-cache"
 kubectl -n "${REQUEST_NAMESPACE}" get s3bucket "${REQUEST_NAME}-object-store"

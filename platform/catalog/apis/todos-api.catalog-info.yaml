@@ -3,11 +3,10 @@ kind: API
 metadata:
   name: todos-api
   annotations:
-    runtimeconditions.io/base-url: http://todos-api.demo.svc.cluster.local:8080
+    platform.demoteam.dev/base-url: http://todos-api.demo.svc.cluster.local:8080
 spec:
   type: openapi
   lifecycle: production
   owner: group:default/platform
   definition:
     $text: ./todos.openapi.yaml
-

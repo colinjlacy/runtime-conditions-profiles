@@ -30,7 +30,7 @@ def main() -> int:
         "app.kubernetes.io/name": name,
         "app.kubernetes.io/component": "cache",
         "app.kubernetes.io/managed-by": "kratix",
-        "runtimeconditions.io/cache-engine": "redis",
+        "platform.demoteam.dev/cache-engine": "redis",
     }
 
     deployment: dict[str, Any] = {
@@ -134,7 +134,7 @@ def redis_access_policy(
                 "app.kubernetes.io/name": policy_name,
                 "app.kubernetes.io/component": "network-policy",
                 "app.kubernetes.io/managed-by": "kratix",
-                "runtimeconditions.io/policy-type": "cache-access",
+                "platform.demoteam.dev/policy-type": "cache-access",
             },
         },
         "specs": [
