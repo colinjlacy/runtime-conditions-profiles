@@ -93,5 +93,29 @@ wait_for_deployment() {
 wait_for_crd() {
   local name="$1"
   local timeout="${2:-120s}"
+  local timeout_seconds deadline
+  timeout_seconds="$(duration_to_seconds "${timeout}")"
+  deadline="$(($(date +%s) + timeout_seconds))"
+
+  until kubectl get "crd/${name}" >/dev/null 2>&1; do
+    if (( $(date +%s) >= deadline )); then
+      fail "timed out waiting for CRD ${name} to be created"
+    fi
+    sleep 2
+  done
+
   kubectl wait --for=condition=Established "crd/${name}" --timeout="${timeout}"
+}
+
+duration_to_seconds() {
+  local value="$1"
+  if [[ "${value}" =~ ^([0-9]+)$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+  elif [[ "${value}" =~ ^([0-9]+)s$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+  elif [[ "${value}" =~ ^([0-9]+)m$ ]]; then
+    printf '%s\n' "$((BASH_REMATCH[1] * 60))"
+  else
+    fail "unsupported timeout format: ${value}"
+  fi
 }
