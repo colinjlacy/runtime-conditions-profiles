@@ -34,15 +34,15 @@ jobs:
           - name: redis-pipeline
             context: platform/kratix/promises/redis/pipeline
             file: platform/kratix/promises/redis/pipeline/Dockerfile
-          - name: cilium-api-access-pipeline
-            context: platform/kratix/promises/cilium-api-access/pipeline
-            file: platform/kratix/promises/cilium-api-access/pipeline/Dockerfile
-          - name: cilium-namespace-lockdown-pipeline
-            context: platform/kratix/promises/cilium-namespace-lockdown/pipeline
-            file: platform/kratix/promises/cilium-namespace-lockdown/pipeline/Dockerfile
-          - name: s3-bucket-pipeline
-            context: platform/kratix/promises/s3-bucket/pipeline
-            file: platform/kratix/promises/s3-bucket/pipeline/Dockerfile
+          # - name: cilium-api-access-pipeline
+          #   context: platform/kratix/promises/cilium-api-access/pipeline
+          #   file: platform/kratix/promises/cilium-api-access/pipeline/Dockerfile
+          # - name: cilium-namespace-lockdown-pipeline
+          #   context: platform/kratix/promises/cilium-namespace-lockdown/pipeline
+          #   file: platform/kratix/promises/cilium-namespace-lockdown/pipeline/Dockerfile
+          # - name: s3-bucket-pipeline
+          #   context: platform/kratix/promises/s3-bucket/pipeline
+          #   file: platform/kratix/promises/s3-bucket/pipeline/Dockerfile
           - name: application-release-pipeline
             context: platform/kratix/promises/application-release/pipeline
             file: platform/kratix/promises/application-release/pipeline/Dockerfile
