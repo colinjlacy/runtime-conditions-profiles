@@ -22,7 +22,6 @@ log "Waiting for Kratix platform controller"
 kubectl -n kratix-platform-system rollout status deployment/kratix-platform-controller-manager --timeout=5m
 
 log "Creating demo namespaces"
-kubectl create namespace "${CONTROL_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${DEMO_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${CATALOG_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
@@ -30,3 +29,4 @@ log "Kratix pods"
 kubectl get pods -n kratix-platform-system
 
 log "Kratix installation step complete"
+

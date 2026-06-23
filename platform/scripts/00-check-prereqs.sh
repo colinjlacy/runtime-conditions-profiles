@@ -6,13 +6,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 require_kubectl_context
-require_cmd podman
+require_cmd docker
 require_cmd go
 require_cmd curl
 require_cmd python3
 
 kubectl version --client=true
-podman version >/dev/null
+docker version >/dev/null
 go version
 python3 --version
 

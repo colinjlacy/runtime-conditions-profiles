@@ -9,9 +9,9 @@ spec:
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     metadata:
-      name: redis.platform.demoteam.dev
+      name: redis.runtimeconditions.io
     spec:
-      group: platform.demoteam.dev
+      group: runtimeconditions.io
       names:
         kind: Redis
         plural: redis
@@ -29,33 +29,10 @@ spec:
               properties:
                 spec:
                   type: object
-                  required:
-                    - targetNamespace
                   properties:
-                    targetNamespace:
-                      type: string
                     size:
                       type: string
                       default: small
-                    consumers:
-                      type: array
-                      items:
-                        type: object
-                        required:
-                          - name
-                          - workloadSelector
-                        properties:
-                          name:
-                            type: string
-                          workloadSelector:
-                            type: object
-                            required:
-                              - matchLabels
-                            properties:
-                              matchLabels:
-                                type: object
-                                additionalProperties:
-                                  type: string
   workflows:
     resource:
       configure:
@@ -67,4 +44,4 @@ spec:
             containers:
               - name: configure
                 image: __REDIS_PIPELINE_IMAGE__
-                imagePullPolicy: Always
+

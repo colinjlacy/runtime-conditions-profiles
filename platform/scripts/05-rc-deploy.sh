@@ -13,17 +13,12 @@ APP_IMAGE="${APP_IMAGE:-${REQUEST_LOGGER_IMAGE:-}}"
 WORKLOAD_VERSION="${WORKLOAD_VERSION:-dev}"
 REQUEST_NAME="${REQUEST_NAME:-${APP_NAME}}"
 REQUEST_NAMESPACE="${REQUEST_NAMESPACE:-${DEMO_NAMESPACE}}"
-REQUEST_CONTROL_NAMESPACE="${REQUEST_CONTROL_NAMESPACE:-${CONTROL_NAMESPACE}}"
-LOCKDOWN_REQUEST_NAME="${LOCKDOWN_REQUEST_NAME:-namespace-lockdown}"
-API_ACCESS_REQUEST_NAME="${API_ACCESS_REQUEST_NAME:-${REQUEST_NAME}-todos-api-access}"
-CACHE_REQUEST_NAME="${CACHE_REQUEST_NAME:-${REQUEST_NAME}-cache}"
-OBJECT_STORE_REQUEST_NAME="${OBJECT_STORE_REQUEST_NAME:-${REQUEST_NAME}-object-store}"
 
 [[ -d "${APP_SOURCE_DIR}" ]] || fail "APP_SOURCE_DIR does not exist: ${APP_SOURCE_DIR}"
 [[ -n "${APP_IMAGE}" ]] || fail "APP_IMAGE is not set; run 02-build-and-push-images.sh first or set APP_IMAGE"
 
 PROFILE_FILE="${BUILD_DIR}/${REQUEST_NAME}-profile.yaml"
-REQUEST_FILE="${BUILD_DIR}/${REQUEST_NAME}-applicationrelease.yaml"
+REQUEST_FILE="${BUILD_DIR}/${REQUEST_NAME}-runtimeworkload.yaml"
 
 contains_files() {
   local pattern="$1"
@@ -53,22 +48,18 @@ else
   fail "could not detect Go or Python source in ${APP_SOURCE_DIR}"
 fi
 
-log "Writing ApplicationRelease request"
+log "Writing RuntimeWorkload request"
 {
   cat <<EOF
-apiVersion: platform.demoteam.dev/v1alpha1
-kind: ApplicationRelease
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeWorkload
 metadata:
   name: ${REQUEST_NAME}
-  namespace: ${REQUEST_CONTROL_NAMESPACE}
-  annotations:
-    platform.demoteam.dev/application-release-pipeline-image: "${APPLICATION_RELEASE_PIPELINE_IMAGE:-unknown}"
+  namespace: ${REQUEST_NAMESPACE}
 spec:
   image: ${APP_IMAGE}
-  imagePullPolicy: Always
   port: ${APP_PORT}
   readinessPath: /ready
-  targetNamespace: ${REQUEST_NAMESPACE}
   catalog:
     configMapRef:
       name: ${CATALOG_CONFIGMAP}
@@ -78,53 +69,25 @@ EOF
   sed 's/^/    /' "${PROFILE_FILE}"
 } >"${REQUEST_FILE}"
 
-kubectl create namespace "${REQUEST_CONTROL_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace "${REQUEST_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
-log "Submitting ApplicationRelease request through Kratix in ${REQUEST_CONTROL_NAMESPACE}"
+log "Submitting RuntimeWorkload request through Kratix"
 kubectl apply -f "${REQUEST_FILE}"
 
-log "Waiting for ApplicationRelease configure workflow"
-wait_for_resource_condition \
-  "${REQUEST_CONTROL_NAMESPACE}" \
-  "applicationrelease/${REQUEST_NAME}" \
-  ConfigureWorkflowCompleted \
-  180s
-
-log "Waiting for generated Cilium namespace lockdown request"
-wait_for_resource_condition \
-  "${REQUEST_CONTROL_NAMESPACE}" \
-  "ciliumnamespacelockdown/${LOCKDOWN_REQUEST_NAME}" \
-  ConfigureWorkflowCompleted \
-  180s
-
-log "Waiting for generated Cilium API access request"
-wait_for_resource_condition \
-  "${REQUEST_CONTROL_NAMESPACE}" \
-  "ciliumapiaccess/${API_ACCESS_REQUEST_NAME}" \
-  ConfigureWorkflowCompleted \
-  180s
+log "Waiting for RuntimeWorkload configure workflow"
+kubectl -n "${REQUEST_NAMESPACE}" wait "runtimeworkload/${REQUEST_NAME}" \
+  --for=condition=ConfigureWorkflowCompleted \
+  --timeout=180s
 
 log "Waiting for generated Redis request"
-wait_for_resource_condition \
-  "${REQUEST_CONTROL_NAMESPACE}" \
-  "redis/${CACHE_REQUEST_NAME}" \
-  ConfigureWorkflowCompleted \
-  180s
-
-log "Waiting for generated S3Bucket request"
-wait_for_resource_condition \
-  "${REQUEST_CONTROL_NAMESPACE}" \
-  "s3bucket/${OBJECT_STORE_REQUEST_NAME}" \
-  ConfigureWorkflowCompleted \
-  180s
+kubectl -n "${REQUEST_NAMESPACE}" wait "redis/${REQUEST_NAME}-cache" \
+  --for=condition=ConfigureWorkflowCompleted \
+  --timeout=180s
 
 log "Waiting for generated application Deployment"
 wait_for_deployment "${REQUEST_NAMESPACE}" "${REQUEST_NAME}" 240s
 
-kubectl -n "${REQUEST_CONTROL_NAMESPACE}" get applicationrelease "${REQUEST_NAME}"
-kubectl -n "${REQUEST_CONTROL_NAMESPACE}" get ciliumnamespacelockdown "${LOCKDOWN_REQUEST_NAME}"
-kubectl -n "${REQUEST_CONTROL_NAMESPACE}" get ciliumapiaccess "${API_ACCESS_REQUEST_NAME}"
-kubectl -n "${REQUEST_CONTROL_NAMESPACE}" get redis "${CACHE_REQUEST_NAME}"
-kubectl -n "${REQUEST_CONTROL_NAMESPACE}" get s3bucket "${OBJECT_STORE_REQUEST_NAME}"
+kubectl -n "${REQUEST_NAMESPACE}" get runtimeworkload "${REQUEST_NAME}"
+kubectl -n "${REQUEST_NAMESPACE}" get redis "${REQUEST_NAME}-cache"
 kubectl -n "${REQUEST_NAMESPACE}" get deployment "${REQUEST_NAME}"
+

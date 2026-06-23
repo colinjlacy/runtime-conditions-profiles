@@ -1,32 +1,26 @@
 apiVersion: platform.kratix.io/v1alpha1
 kind: Promise
 metadata:
-  name: application-release
+  name: runtime-workload
   labels:
     kratix.io/promise-version: v0.1.0
 spec:
   requiredPromises:
     - name: redis
       version: v0.1.0
-    - name: api-access
-      version: v0.1.0
-    - name: ns-lockdown
-      version: v0.1.0
-    - name: s3-bucket
-      version: v0.1.0
   api:
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     metadata:
-      name: applicationreleases.platform.demoteam.dev
+      name: runtimeworkloads.runtimeconditions.io
     spec:
-      group: platform.demoteam.dev
+      group: runtimeconditions.io
       names:
-        kind: ApplicationRelease
-        plural: applicationreleases
-        singular: applicationrelease
+        kind: RuntimeWorkload
+        plural: runtimeworkloads
+        singular: runtimeworkload
         shortNames:
-          - apprel
+          - rw
       scope: Namespaced
       versions:
         - name: v1alpha1
@@ -45,13 +39,11 @@ spec:
                   required:
                     - image
                     - profile
-                    - targetNamespace
                   properties:
                     image:
                       type: string
                     imagePullPolicy:
                       type: string
-                      default: Always
                     port:
                       type: integer
                       default: 8080
@@ -61,8 +53,6 @@ spec:
                     readinessPath:
                       type: string
                       default: /ready
-                    targetNamespace:
-                      type: string
                     profile:
                       type: string
                     catalog:
@@ -94,5 +84,4 @@ spec:
                   resourceNamespace: "__CATALOG_NAMESPACE__"
             containers:
               - name: resolver
-                image: __APPLICATION_RELEASE_PIPELINE_IMAGE__
-                imagePullPolicy: Always
+                image: __RUNTIME_WORKLOAD_PIPELINE_IMAGE__
