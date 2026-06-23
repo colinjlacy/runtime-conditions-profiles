@@ -92,6 +92,33 @@ wait_for_deployment() {
   kubectl -n "${namespace}" rollout status "deployment/${name}" --timeout="${timeout}"
 }
 
+wait_for_resource_condition() {
+  local namespace="$1"
+  local resource="$2"
+  local condition="$3"
+  local timeout="${4:-180s}"
+  local timeout_seconds deadline
+  timeout_seconds="$(duration_to_seconds "${timeout}")"
+  deadline="$(($(date +%s) + timeout_seconds))"
+  local now last_log=0
+
+  until kubectl -n "${namespace}" get "${resource}" >/dev/null 2>&1; do
+    now="$(date +%s)"
+    if (( now >= deadline )); then
+      fail "timed out waiting for ${resource} in namespace ${namespace} to be created"
+    fi
+    if (( now - last_log >= 20 )); then
+      log "still waiting for ${resource} in namespace ${namespace} to be created"
+      last_log="${now}"
+    fi
+    sleep 2
+  done
+
+  kubectl -n "${namespace}" wait "${resource}" \
+    --for="condition=${condition}" \
+    --timeout="${timeout}"
+}
+
 wait_for_crd() {
   local name="$1"
   local timeout="${2:-120s}"
