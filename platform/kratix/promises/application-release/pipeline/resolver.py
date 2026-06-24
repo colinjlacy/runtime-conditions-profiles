@@ -77,7 +77,7 @@ def resolve(request: dict[str, Any]) -> OutputDocuments:
     image = require_string(spec, "image")
     port = int(spec.get("port", 8080))
     replicas = int(spec.get("replicas", 1))
-    image_pull_policy = spec.get("imagePullPolicy", "IfNotPresent")
+    image_pull_policy = spec.get("imagePullPolicy", "Always")
     readiness_path = spec.get("readinessPath", "/ready")
 
     profile = yaml.safe_load(require_string(spec, "profile"))

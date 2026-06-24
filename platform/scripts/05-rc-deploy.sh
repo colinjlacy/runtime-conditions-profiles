@@ -58,6 +58,7 @@ metadata:
   namespace: ${REQUEST_NAMESPACE}
 spec:
   image: ${APP_IMAGE}
+  imagePullPolicy: Always
   port: ${APP_PORT}
   readinessPath: /ready
   catalog:
