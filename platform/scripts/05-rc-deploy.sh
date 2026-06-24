@@ -81,6 +81,10 @@ kubectl -n "${REQUEST_NAMESPACE}" wait "runtimeworkload/${REQUEST_NAME}" \
 
 log "Waiting for generated Redis request"
 kubectl -n "${REQUEST_NAMESPACE}" wait "redis/${REQUEST_NAME}-cache" \
+  --for=create \
+  --timeout=180s
+
+kubectl -n "${REQUEST_NAMESPACE}" wait "redis/${REQUEST_NAME}-cache" \
   --for=condition=ConfigureWorkflowCompleted \
   --timeout=180s
 
@@ -90,4 +94,3 @@ wait_for_deployment "${REQUEST_NAMESPACE}" "${REQUEST_NAME}" 240s
 kubectl -n "${REQUEST_NAMESPACE}" get runtimeworkload "${REQUEST_NAME}"
 kubectl -n "${REQUEST_NAMESPACE}" get redis "${REQUEST_NAME}-cache"
 kubectl -n "${REQUEST_NAMESPACE}" get deployment "${REQUEST_NAME}"
-
