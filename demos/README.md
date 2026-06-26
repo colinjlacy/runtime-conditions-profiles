@@ -45,14 +45,14 @@ From the repository root:
 ```sh
 demos/kratix/scripts/00-check-prereqs.sh
 demos/kratix/scripts/01-install-kratix.sh
-demos/kratix/scripts/03-install-promises.sh
-demos/kratix/scripts/04-deploy-catalog-and-provider.sh
-demos/kratix/scripts/05-rc-deploy.sh
-demos/kratix/scripts/06-smoke-test.sh
+demos/kratix/scripts/02-install-promises.sh
+demos/kratix/scripts/03-deploy-catalog-and-provider.sh
+demos/kratix/scripts/04-deploy-application-release.sh
+demos/kratix/scripts/05-smoke-test.sh
 ```
 
 To run the contract failure path:
 
 ```sh
-demos/kratix/scripts/07-demo-breaking-change.sh
+demos/kratix/scripts/06-demo-breaking-change.sh
 ```

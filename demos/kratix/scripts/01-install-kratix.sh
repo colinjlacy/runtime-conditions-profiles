@@ -6,19 +6,19 @@ MANIFEST_DIR="$(cd "${SCRIPT_DIR}/../manifests" && pwd)"
 
 KRATIX_INSTALLER_URL="${KRATIX_INSTALLER_URL:-https://github.com/syntasso/kratix/releases/download/latest/kratix-quick-start-installer.yaml}"
 
-printf '[runtimeconditions] applying demo namespaces\n'
+printf '[platform-demo] applying demo namespaces\n'
 kubectl apply -f "${MANIFEST_DIR}/namespaces.yaml"
 
-printf '[runtimeconditions] installing Kratix quick-start stack\n'
+printf '[platform-demo] installing Kratix quick-start stack\n'
 kubectl apply -f "${KRATIX_INSTALLER_URL}"
 
-printf '[runtimeconditions] waiting for quick-start installer job\n'
+printf '[platform-demo] waiting for quick-start installer job\n'
 kubectl -n default wait --for=condition=complete job/kratix-quick-start-installer --timeout=10m
 
-printf '[runtimeconditions] waiting for Kratix platform controller\n'
+printf '[platform-demo] waiting for Kratix platform controller\n'
 kubectl -n kratix-platform-system rollout status deployment/kratix-platform-controller-manager --timeout=5m
 
-printf '[runtimeconditions] Kratix pods\n'
+printf '[platform-demo] Kratix pods\n'
 kubectl get pods -n kratix-platform-system
 
-printf '[runtimeconditions] Kratix installation step complete\n'
+printf '[platform-demo] Kratix installation step complete\n'

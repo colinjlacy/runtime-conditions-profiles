@@ -4,7 +4,7 @@ set -euo pipefail
 LOCAL_PORT="${LOCAL_PORT:-8080}"
 PORT_FORWARD_LOG="${TMPDIR:-/tmp}/request-logger-port-forward.log"
 
-printf '[runtimeconditions] opening port-forward to svc/request-logger on localhost:%s\n' "${LOCAL_PORT}"
+printf '[platform-demo] opening port-forward to svc/request-logger on localhost:%s\n' "${LOCAL_PORT}"
 kubectl -n demo port-forward svc/request-logger "${LOCAL_PORT}:8080" >"${PORT_FORWARD_LOG}" 2>&1 &
 PF_PID="$!"
 trap 'kill "${PF_PID}" >/dev/null 2>&1 || true' EXIT
@@ -20,12 +20,12 @@ RESPONSE="$(curl -fsS "http://127.0.0.1:${LOCAL_PORT}/demo")"
 printf '%s\n' "${RESPONSE}"
 
 if ! printf '%s' "${RESPONSE}" | grep -q '"todosApi":"ok"'; then
-  printf '[runtimeconditions] todos API smoke check failed\n' >&2
+  printf '[platform-demo] todos API smoke check failed\n' >&2
   exit 1
 fi
 if ! printf '%s' "${RESPONSE}" | grep -q '"cache":"ok"'; then
-  printf '[runtimeconditions] cache smoke check failed\n' >&2
+  printf '[platform-demo] cache smoke check failed\n' >&2
   exit 1
 fi
 
-printf '[runtimeconditions] smoke test passed\n'
+printf '[platform-demo] smoke test passed\n'

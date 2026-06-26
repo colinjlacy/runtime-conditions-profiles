@@ -1,8 +1,8 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: runtimeconditions-api-catalog
-  namespace: runtimeconditions-system
+  name: platform-api-catalog
+  namespace: platform-demo-system
 data:
   todos-api.catalog-info.yaml: |
     apiVersion: backstage.io/v1alpha1

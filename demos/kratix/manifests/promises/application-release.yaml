@@ -1,7 +1,7 @@
 apiVersion: platform.kratix.io/v1alpha1
 kind: Promise
 metadata:
-  name: runtime-workload
+  name: application-release
   labels:
     kratix.io/promise-version: v0.1.0
 spec:
@@ -12,15 +12,15 @@ spec:
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     metadata:
-      name: runtimeworkloads.platform.demoteam.io
+      name: applicationreleases.platform.demoteam.io
     spec:
       group: platform.demoteam.io
       names:
-        kind: RuntimeWorkload
-        plural: runtimeworkloads
-        singular: runtimeworkload
+        kind: ApplicationRelease
+        plural: applicationreleases
+        singular: applicationrelease
         shortNames:
-          - rw
+          - ar
       scope: Namespaced
       versions:
         - name: v1alpha1
@@ -75,14 +75,14 @@ spec:
         - apiVersion: platform.kratix.io/v1alpha1
           kind: Pipeline
           metadata:
-            name: configure-workload
+            name: configure-application-release
           spec:
             rbac:
               permissions:
                 - apiGroups: [""]
                   resources: ["configmaps"]
                   verbs: ["get"]
-                  resourceNamespace: runtimeconditions-system
+                  resourceNamespace: platform-demo-system
             containers:
               - name: resolver
                 image: ghcr.io/colinjlacy/runtime-conditions-profiles-application-release-pipeline:latest

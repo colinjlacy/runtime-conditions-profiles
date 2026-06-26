@@ -1,7 +1,7 @@
 apiVersion: platform.demoteam.io/v1alpha1
-kind: RuntimeWorkload
+kind: ApplicationRelease
 metadata:
-  name: request-logger
+  name: request-logger-breaking
   namespace: demo
 spec:
   image: ghcr.io/colinjlacy/runtime-conditions-profiles-request-logger:latest
@@ -10,13 +10,13 @@ spec:
   readinessPath: /ready
   catalog:
     configMapRef:
-      name: runtimeconditions-api-catalog
-      namespace: runtimeconditions-system
+      name: platform-api-catalog
+      namespace: platform-demo-system
   profile: |
     apiVersion: runtimeconditions.io/v1alpha1
     kind: RuntimeConditionsProfile
     metadata:
-      name: request-logger-http
+      name: request-logger-breaking
     workload:
       uri: github.com/colinjlacy/runtime-conditions-profiles/demos/apps/request-logger-http
       version: dev

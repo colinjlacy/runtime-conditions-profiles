@@ -41,10 +41,10 @@ def main() -> int:
         request = yaml.safe_load((INPUT_DIR / "object.yaml").read_text(encoding="utf-8"))
         output = resolve(request)
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        write_yaml_documents(OUTPUT_DIR / "runtime-workload.yaml", output)
+        write_yaml_documents(OUTPUT_DIR / "application-release.yaml", output)
         write_status(
             {
-                "message": "Runtime workload resolved",
+                "message": "Application release resolved",
                 "resolvedConditions": {
                     "apis": output.summary["apis"],
                     "caches": output.summary["caches"],
@@ -58,8 +58,8 @@ def main() -> int:
         write_status({"message": "API contract validation failed", "validationError": str(exc)})
         return 1
     except Exception as exc:
-        print(f"runtime workload resolution failed: {exc}", file=sys.stderr)
-        write_status({"message": "Runtime workload resolution failed", "error": str(exc)})
+        print(f"application release resolution failed: {exc}", file=sys.stderr)
+        write_status({"message": "Application release resolution failed", "error": str(exc)})
         return 1
 
 
@@ -344,7 +344,7 @@ def redis_request(name: str, namespace: str, workload_name: str) -> dict[str, An
             "name": name,
             "namespace": namespace,
             "labels": {
-                "kratix.io/component-of-promise-name": "runtime-workload",
+                "kratix.io/component-of-promise-name": "application-release",
                 "kratix.io/component-of-resource-name": workload_name,
                 "kratix.io/component-of-resource-namespace": namespace,
             },
