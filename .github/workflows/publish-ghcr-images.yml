@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - cleanup-repo
     paths:
       - ".github/workflows/publish-ghcr-images.yml"
       - "demos/kratix/promises/redis/pipeline/**"
