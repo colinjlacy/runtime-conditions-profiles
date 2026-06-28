@@ -1,0 +1,10 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/constructor-binding
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: constructor.event_sink

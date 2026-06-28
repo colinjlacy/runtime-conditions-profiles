@@ -1,0 +1,10 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/duplicate-kind-beta
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: duplicate.cache

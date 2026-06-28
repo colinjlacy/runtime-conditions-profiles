@@ -24,7 +24,10 @@ This extension defines the Condition field `configuration`.
 
 This extension depends on `https://runtimeconditions.io/extensions/common-integrations:v1alpha1` for the common Condition kinds and interface types referenced by its standard property validation table.
 
-This extension owns the unqualified Condition field name `configuration`. Other extensions MAY depend on this extension and reference that field, but MUST NOT redefine `configuration` as a separate Condition field.
+This extension owns the unqualified Condition field name `configuration` only
+within the common integration scopes listed in this document. Other extensions
+MAY define `configuration` for their own non-overlapping Condition kinds and
+interface types.
 
 ---
 

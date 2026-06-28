@@ -1,0 +1,12 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/cycle-b
+  version: v1alpha1
+
+spec:
+  dependencies:
+    - https://example.com/runtimeconditions/cycle-a:v1alpha1
+  kinds:
+    - name: cycle.b

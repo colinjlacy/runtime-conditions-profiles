@@ -1,0 +1,21 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/base
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: shared.object
+
+  interfaceTypes:
+    - name: shared.api
+      targetKind: shared.object
+
+  conditionFields:
+    - name: configuration
+      appliesToKinds:
+        - shared.object
+      appliesToInterfaceTypes:
+        - shared.api

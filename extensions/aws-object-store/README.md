@@ -30,10 +30,9 @@ This extension defines:
 - The `standard` and `archive` bucket class values
 - S3-specific environment configuration properties for `bucket`, `region`, `accessKeyId`, `secretAccessKey`, and `sessionToken`
 
-This extension depends on:
-
-- `https://runtimeconditions.io/extensions/common-integrations:v1alpha1`
-- `https://runtimeconditions.io/extensions/env-configuration:v1alpha1`
+This extension has no extension dependencies. It defines its own `configuration`
+field scope for `aws.object_store` Conditions with the `aws.s3` interface type,
+plus S3-specific allowed property values inside that field.
 
 ---
 

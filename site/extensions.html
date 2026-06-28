@@ -221,8 +221,16 @@ common.Cache("request-cache",
 )</code></pre>
           </div>
           <div class="example">
-            <div class="example-title">Option-only package manifest</div>
-            <pre><code>go:
+            <div class="example-title">Option-only binding manifest</div>
+            <pre><code>apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsGoBinding
+
+metadata:
+  extension: https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  extensionDefinition: ../env-configuration-v1alpha1.yaml
+  language: go
+
+go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/extensions/env-configuration/go
   package: envconfiguration
 
@@ -280,7 +288,7 @@ conditions:
         <section class="section">
           <h2>Third-party extensions follow the same rules</h2>
           <p class="short">
-            The AWS Object Store extension is treated as a third-party example. It defines `aws.object_store`, `aws.s3`, S3-specific fields, and depends on first-party configuration vocabulary.
+            The AWS Object Store extension is treated as a third-party example. It defines `aws.object_store`, `aws.s3`, S3-specific fields, and its own scoped `configuration` properties.
           </p>
           <div class="example">
             <div class="example-title">
@@ -292,16 +300,19 @@ conditions:
   version: v1alpha1
 
 spec:
-  dependencies:
-    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
-
   kinds:
     - name: aws.object_store
 
   interfaceTypes:
     - name: aws.s3
-      targetKind: aws.object_store</code></pre>
+      targetKind: aws.object_store
+
+  conditionFields:
+    - name: configuration
+      appliesToKinds:
+        - aws.object_store
+      appliesToInterfaceTypes:
+        - aws.s3</code></pre>
           </div>
         </section>
 

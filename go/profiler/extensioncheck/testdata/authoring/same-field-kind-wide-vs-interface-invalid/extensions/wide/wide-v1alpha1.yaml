@@ -1,0 +1,14 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/wide-field-wide
+  version: v1alpha1
+
+spec:
+  dependencies:
+    - https://example.com/runtimeconditions/wide-field-base:v1alpha1
+  conditionFields:
+    - name: configuration
+      appliesToKinds:
+        - wide.service

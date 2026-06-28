@@ -1,9 +1,10 @@
 apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsPackage
+kind: RuntimeConditionsGoBinding
 
-extension:
-  id: https://runtimeconditions.io/extensions/env-configuration:v1alpha1
-  definition: ../env-configuration-v1alpha1.yaml
+metadata:
+  extension: https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  extensionDefinition: ../env-configuration-v1alpha1.yaml
+  language: go
 
 go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/extensions/env-configuration/go

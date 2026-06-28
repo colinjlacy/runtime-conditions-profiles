@@ -1,0 +1,13 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/wide-field-base
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: wide.service
+  interfaceTypes:
+    - name: wide.http
+      targetKind: wide.service

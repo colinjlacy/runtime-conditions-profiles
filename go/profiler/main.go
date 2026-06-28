@@ -8,18 +8,34 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/colinjlacy/runtime-conditions-profiles/go/profiler/extensioncheck"
 	"github.com/colinjlacy/runtime-conditions-profiles/go/profiler/extractor"
 	"gopkg.in/yaml.v3"
 )
 
 func main() {
-	dir := flag.String("dir", ".", "directory containing Go source declarations")
-	name := flag.String("name", "", "profile metadata.name")
-	workloadURI := flag.String("workload-uri", "", "workload.uri")
-	workloadVersion := flag.String("workload-version", "dev", "workload.version")
-	extensionsRoot := flag.String("extensions-root", "", "directory containing extension binding manifests; package manifests are discovered from direct imports")
-	out := flag.String("out", "", "output file path; defaults to stdout")
-	flag.Parse()
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "validate-extension":
+			runValidateExtension(os.Args[2:])
+			return
+		case "validate-extensions":
+			runValidateExtensions(os.Args[2:])
+			return
+		}
+	}
+	runGenerate(os.Args[1:])
+}
+
+func runGenerate(args []string) {
+	flags := flag.NewFlagSet("generate", flag.ExitOnError)
+	dir := flags.String("dir", ".", "directory containing Go source declarations")
+	name := flags.String("name", "", "profile metadata.name")
+	workloadURI := flags.String("workload-uri", "", "workload.uri")
+	workloadVersion := flags.String("workload-version", "dev", "workload.version")
+	extensionsRoot := flags.String("extensions-root", "", "directory containing extension binding manifests; package manifests are discovered from direct imports")
+	out := flags.String("out", "", "output file path; defaults to stdout")
+	flags.Parse(args)
 
 	absDir, err := filepath.Abs(*dir)
 	if err != nil {
@@ -59,6 +75,44 @@ func main() {
 	if err != nil {
 		exitErr(err)
 	}
+}
+
+func runValidateExtension(args []string) {
+	flags := flag.NewFlagSet("validate-extension", flag.ExitOnError)
+	root := flags.String("root", ".", "extension directory to validate")
+	language := flags.String("language", "go", "language binding package to validate")
+	catalogRoot := flags.String("catalog-root", "", "additional comma-separated directories containing dependency extension definitions")
+	requireLanguagePackage := flags.Bool("require-language-package", false, "require the selected language package and bindings")
+	flags.Parse(args)
+
+	err := extensioncheck.ValidateExtension(*root, extensioncheck.Options{
+		Language:               *language,
+		CatalogRoots:           splitList(*catalogRoot),
+		RequireLanguagePackage: *requireLanguagePackage,
+	})
+	if err != nil {
+		exitErr(err)
+	}
+	fmt.Fprintln(os.Stderr, "runtimeconditions: extension validation passed")
+}
+
+func runValidateExtensions(args []string) {
+	flags := flag.NewFlagSet("validate-extensions", flag.ExitOnError)
+	root := flags.String("root", ".", "directory containing extension definitions to validate")
+	language := flags.String("language", "go", "language binding package to validate")
+	catalogRoot := flags.String("catalog-root", "", "additional comma-separated directories containing dependency extension definitions")
+	requireLanguagePackage := flags.Bool("require-language-package", false, "require every extension to provide the selected language package and bindings")
+	flags.Parse(args)
+
+	err := extensioncheck.ValidateExtensions(*root, extensioncheck.Options{
+		Language:               *language,
+		CatalogRoots:           splitList(*catalogRoot),
+		RequireLanguagePackage: *requireLanguagePackage,
+	})
+	if err != nil {
+		exitErr(err)
+	}
+	fmt.Fprintln(os.Stderr, "runtimeconditions: extensions validation passed")
 }
 
 func splitList(value string) []string {

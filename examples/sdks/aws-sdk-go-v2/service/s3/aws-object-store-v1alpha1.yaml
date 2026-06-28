@@ -6,10 +6,6 @@ metadata:
   version: v1alpha1
 
 spec:
-  dependencies:
-    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
-
   kinds:
     - name: aws.object_store
 
@@ -21,6 +17,13 @@ spec:
     - name: bucketClass
       targetKind: aws.object_store
       targetType: aws.s3
+
+  conditionFields:
+    - name: configuration
+      appliesToKinds:
+        - aws.object_store
+      appliesToInterfaceTypes:
+        - aws.s3
 
   fieldValues:
     - field: interface.bucketClass

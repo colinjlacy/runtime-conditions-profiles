@@ -1,0 +1,21 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/cross-domain-cert
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: cryptographic.trust
+  conditionFields:
+    - name: trust
+      appliesToKinds:
+        - cryptographic.trust
+  fieldValues:
+    - field: trust.store
+      targetKind: cryptographic.trust
+      values:
+        - system
+        - bundled
+        - custom

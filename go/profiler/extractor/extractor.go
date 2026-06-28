@@ -200,6 +200,12 @@ type goModule struct {
 	replaces map[string]string
 }
 
+const (
+	goBindingsManifest       = "runtimeconditions.bindings.yaml"
+	legacyGoBindingManifest  = "runtimeconditions.binding.yaml"
+	goPackageBindingManifest = "runtimeconditions.package.yaml"
+)
+
 type extractor struct {
 	fset  *token.FileSet
 	scope *packageScope
@@ -313,7 +319,7 @@ func discoverGoBindings(roots []string) ([]*goBinding, error) {
 				}
 				return nil
 			}
-			if d.Name() != "runtimeconditions.binding.yaml" {
+			if !isExtensionBindingManifest(d.Name()) {
 				return nil
 			}
 			binding, err := readGoBinding(path)
@@ -346,17 +352,14 @@ func discoverGoPackageBindings(sourceDir string, files []parsedFile) ([]*goBindi
 		if packageDir == "" {
 			continue
 		}
-		manifestPath := filepath.Join(packageDir, "runtimeconditions.package.yaml")
-		if seen[manifestPath] {
+		manifestPath, ok, err := findPackageBindingManifest(packageDir)
+		if err != nil {
+			return nil, err
+		}
+		if !ok || seen[manifestPath] {
 			continue
 		}
 		seen[manifestPath] = true
-		if _, err := os.Stat(manifestPath); err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, err
-		}
 		binding, err := readGoBinding(manifestPath)
 		if err != nil {
 			return nil, err
@@ -364,6 +367,24 @@ func discoverGoPackageBindings(sourceDir string, files []parsedFile) ([]*goBindi
 		bindings = append(bindings, binding)
 	}
 	return bindings, nil
+}
+
+func isExtensionBindingManifest(name string) bool {
+	return name == goBindingsManifest || name == legacyGoBindingManifest
+}
+
+func findPackageBindingManifest(dir string) (string, bool, error) {
+	for _, name := range []string{goBindingsManifest, goPackageBindingManifest} {
+		path := filepath.Join(dir, name)
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return "", false, err
+		}
+		return path, true, nil
+	}
+	return "", false, nil
 }
 
 func readGoBinding(path string) (*goBinding, error) {

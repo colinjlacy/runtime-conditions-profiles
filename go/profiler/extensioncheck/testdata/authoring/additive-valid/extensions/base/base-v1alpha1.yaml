@@ -1,0 +1,14 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/base
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: example.cache
+
+  interfaceTypes:
+    - name: example.key_value
+      targetKind: example.cache

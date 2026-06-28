@@ -1,0 +1,16 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsGoBinding
+
+metadata:
+  extension: https://example.com/runtimeconditions/missing:v1alpha1
+  extensionDefinition: ../missing-v1alpha1.yaml
+  language: go
+
+go:
+  importPath: github.com/example/runtimeconditions/missing/go
+  package: missing
+
+  declarations:
+    - function: Missing
+      nameArg: 0
+      kind: missing.cache

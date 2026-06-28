@@ -1,0 +1,17 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/filesystem-overlap-base
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: filesystem
+  interfaceTypes:
+    - name: posix
+      targetKind: filesystem
+  conditionFields:
+    - name: access
+      appliesToKinds:
+        - filesystem

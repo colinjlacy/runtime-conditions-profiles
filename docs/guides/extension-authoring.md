@@ -23,6 +23,18 @@ An extension MAY define:
 
 An extension MUST NOT redefine vocabulary owned by another extension. If it needs to build on that vocabulary, it must declare a dependency and reference the dependency-owned kind, interface type, or field in scoped definitions.
 
+For first-party tooling support, the resolved extension set must contain exactly one definition for each vocabulary item in its scope. Two definitions conflict even if they are textually identical.
+
+The scope of a vocabulary item is part of its identity:
+
+- A kind is scoped by its `name`.
+- An interface type is scoped by `targetKind` and `name`.
+- An interface field is scoped by `targetKind`, `targetType`, and `name`.
+- A condition field is scoped by `name`, `appliesToKinds`, and `appliesToInterfaceTypes`.
+- A field value definition is scoped by `field`, `targetKind`, and `targetType`.
+
+Condition fields with the same `name` can coexist only when their kind/type scopes do not overlap. A kind-wide condition field overlaps every narrower interface-type condition field for that kind. The same field name can be reused for unrelated kinds, or for distinct interface types under the same kind when neither definition is kind-wide.
+
 ---
 
 # 2. Base Extensions
@@ -97,7 +109,9 @@ spec:
         - key_value
 ```
 
-The dependency makes the referenced common vocabulary available. The additive extension owns only `configuration` and the rules for values inside that field.
+The dependency makes the referenced common vocabulary available. The additive
+extension owns `configuration` only in the listed kind and interface-type scopes,
+plus the rules for values inside that field.
 
 ---
 
@@ -137,6 +151,15 @@ fieldValues:
 ```
 
 The field path is owned by the additive extension. The target kind and interface type may come from the same extension or from a declared dependency.
+
+For first-party tooling support, a `fieldValues.field` path must resolve to a field that is valid in the declared `targetKind` and optional `targetType` scope:
+
+- Paths beginning with `interface.` must target an `interfaceFields` entry for that exact `targetKind` and `targetType`, except `interface.type`, which targets an interface type value.
+- Paths beginning with a condition field name, such as `configuration.` or `trust.`, must target a `conditionFields` entry with the same name whose scope includes the declared `targetKind` and `targetType`.
+- `targetType` must identify an interface type that is valid for `targetKind` when `targetType` is present.
+- Values inside one `fieldValues` entry must be unique.
+
+This allows unusual field paths such as `access.identity.kind`, `validation.nameConstraints.mode`, `interface.revocation.method`, or `interface.flows[].grantType`, as long as the first path segment is owned and scoped by the extension or one of its dependencies.
 
 ---
 
@@ -179,6 +202,8 @@ schemas:
 ```
 
 Schemas from multiple resolved extensions apply additively. A Condition must satisfy every schema whose scope matches it.
+
+For first-party tooling support, `schemas[].appliesToKind` must resolve to exactly one kind in the resolved extension set. If `schemas[].appliesToInterfaceType` is present, it must resolve to exactly one interface type for `schemas[].appliesToKind`.
 
 ---
 
@@ -262,11 +287,32 @@ Adapters and validators still resolve transitive extension dependencies from ext
 
 ---
 
-# 7. Package Manifest Option Augmentation
+# 7. Binding Manifest Option Augmentation
 
-The package manifest for a base declaration package maps source calls to Conditions:
+An extension-side Go declaration package uses `runtimeconditions.bindings.yaml`.
+That binding manifest maps source calls back to extension-owned profile
+vocabulary.
+
+For first-party Go tooling support:
+
+- `runtimeconditions.bindings.yaml` must use `kind: RuntimeConditionsGoBinding`.
+- `metadata.extension` must match the extension definition identifier, `<metadata.uri>:<metadata.version>`.
+- `metadata.extensionDefinition`, when present, must resolve to the extension definition file.
+- `metadata.language`, when present, must be `go`.
+- `go.importPath` and `go.package` are required.
+- At least one `go.declarations` or `go.options` entry is required.
+
+The binding manifest for a base declaration package maps source calls to Conditions:
 
 ```yaml
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsGoBinding
+
+metadata:
+  extension: https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+  extensionDefinition: ../common-integrations-v1alpha1.yaml
+  language: go
+
 go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/extensions/common-integrations/go
   package: commonintegrations
@@ -282,9 +328,17 @@ go:
           engineArg: 0
 ```
 
-The package manifest for an option-only extension maps source calls to fields that can augment compatible Conditions:
+The binding manifest for an option-only extension maps source calls to fields that can augment compatible Conditions:
 
 ```yaml
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsGoBinding
+
+metadata:
+  extension: https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  extensionDefinition: ../env-configuration-v1alpha1.yaml
+  language: go
+
 go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/extensions/env-configuration/go
   package: envconfiguration
@@ -303,6 +357,37 @@ go:
 
 Generators use `go.options` only when an option call appears inside a compatible declaration call. Standalone option calls are ignored for profile emission.
 
+A `go.declarations` entry must map to extension-resolved vocabulary:
+
+- `kind` must resolve to exactly one kind.
+- `interfaceType`, when present, must resolve to exactly one interface type for `kind`.
+- `values` must target supported binding targets and defined field values.
+- A declaration may name either a package-level `function` or a receiver `method`.
+
+A `go.options` entry must map to fields that are valid for the declaration scope or for the option's `appliesToKinds` and `appliesToInterfaceTypes` scope. For configuration-style targets, the target field and the configured property field must both be defined in that same scope.
+
+The Go declaration package must match the binding manifest:
+
+- The parsed Go package name must match `go.package`.
+- Every manifest constant must exist in Go and have the same string value.
+- Every package-level declaration, option, and constructor function named in the manifest must exist.
+- Every receiver method named in the manifest must exist on the named receiver type.
+- `nameArg` and entries in `stringArgs` must point to existing `string` parameters.
+- `valueArg` and `engineArg` must point to existing parameters.
+- `typeArg` must point to an existing type parameter.
+- Nested options are validated recursively.
+
+Use the static validator before treating an extension as first-party tooling-ready:
+
+```sh
+cd go/profiler
+go run . validate-extension -root ../../extensions/env-configuration
+```
+
+The validator loads the target extension definition, resolves dependency extension definitions, checks the binding manifest against the resolved vocabulary, and checks that the Go declaration package contains the functions, methods, constructors, constants, and argument positions named by the binding manifest.
+
+When validating a single extension directory, dependencies are discovered from sibling extension directories and any explicit `--catalog-root` values. When validating a collection root, only definitions under that root and explicit catalog roots are part of the catalog. Test fixtures use this behavior to keep independent fixture catalogs isolated even when they reuse example extension identifiers.
+
 ---
 
 # 8. Authoring Checklist
@@ -310,10 +395,15 @@ Generators use `go.options` only when an option call appears inside a compatible
 - Define only vocabulary your extension owns.
 - Declare dependencies for vocabulary you reference but do not own.
 - Scope additive fields to the dependency-owned kinds and interface types they augment.
+- Avoid condition field scope overlap unless the definitions are intentionally the same owned definition.
 - Use `fieldValues` for portable, adapter-visible enums.
+- Make every `fieldValues.field` path resolve to a condition or interface field in the declared target scope.
 - Use JSON Schema for machine-readable validation.
+- Scope schemas only to kinds and interface types that resolve in the extension's dependency graph.
 - Keep schemas focused on your extension's fields and allow unrelated properties.
 - Export only declaration functions for vocabulary your package owns.
 - For additive Go packages, export typed options that satisfy base package marker interfaces.
-- Describe additive Go options with package-level `go.options` mappings.
+- Describe additive Go options with binding-level `go.options` mappings.
+- Keep `runtimeconditions.bindings.yaml` identity, package names, symbols, constants, and argument indexes synchronized with the Go package.
+- Run `go run . validate-extension -root <extension-dir>` before publishing first-party tooling support.
 - Do not encode secrets, concrete target-environment values, or provider-specific fulfillment choices.

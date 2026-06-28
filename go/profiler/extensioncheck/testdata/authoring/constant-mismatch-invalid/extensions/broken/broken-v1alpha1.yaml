@@ -1,0 +1,16 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  uri: https://example.com/runtimeconditions/broken
+  version: v1alpha1
+
+spec:
+  kinds:
+    - name: broken.cache
+
+  fieldValues:
+    - field: kind
+      targetKind: broken.cache
+      values:
+        - redis
