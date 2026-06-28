@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,8 +18,8 @@ import (
 
 const (
 	goBindingsManifest       = "runtimeconditions.bindings.yaml"
-	legacyGoBindingManifest  = "runtimeconditions.binding.yaml"
 	goPackageBindingManifest = "runtimeconditions.package.yaml"
+	defaultExtensionFile     = "runtimeconditions.extension.yaml"
 )
 
 // Options configures static extension validation.
@@ -61,7 +62,7 @@ func ValidateBindingManifest(path string, opts Options) error {
 	}
 	extensionDefinition := binding.extensionDefinitionPath()
 	if extensionDefinition == "" {
-		return validationErrors{absPath + ": extension definition is required"}
+		extensionDefinition = filepath.Join(filepath.Dir(absPath), defaultExtensionFile)
 	}
 	if !filepath.IsAbs(extensionDefinition) {
 		extensionDefinition = filepath.Join(filepath.Dir(absPath), extensionDefinition)
@@ -278,8 +279,7 @@ type extensionDefinition struct {
 	APIVersion string `yaml:"apiVersion"`
 	Kind       string `yaml:"kind"`
 	Metadata   struct {
-		URI     string `yaml:"uri"`
-		Version string `yaml:"version"`
+		ID string `yaml:"id"`
 	} `yaml:"metadata"`
 	Spec extensionSpec `yaml:"spec"`
 }
@@ -513,8 +513,8 @@ func (v *validator) loadCatalog(roots []string) error {
 				return nil
 			}
 			id := definitionID(definition)
-			if id == ":" {
-				v.addf(path, "metadata.uri and metadata.version are required")
+			if id == "" {
+				v.addf(path, "metadata.id is required")
 				return nil
 			}
 			if existing := v.nodes[id]; existing != nil {
@@ -617,11 +617,10 @@ func (v *validator) validateDefinition(node *extensionNode) {
 	if def.Kind != "RuntimeConditionsExtensionDefinition" {
 		v.addf(node.DefinitionPath, "kind must be RuntimeConditionsExtensionDefinition")
 	}
-	if def.Metadata.URI == "" {
-		v.addf(node.DefinitionPath, "metadata.uri is required")
-	}
-	if def.Metadata.Version == "" {
-		v.addf(node.DefinitionPath, "metadata.version is required")
+	if def.Metadata.ID == "" {
+		v.addf(node.DefinitionPath, "metadata.id is required")
+	} else if !validExtensionID(def.Metadata.ID) {
+		v.addf(node.DefinitionPath, "metadata.id must be an absolute HTTP or HTTPS URI")
 	}
 	if node.ID != definitionID(def) {
 		v.addf(node.DefinitionPath, "extension id %s does not match metadata", node.ID)
@@ -787,16 +786,18 @@ func (v *validator) validateBinding(node *extensionNode, resolved vocabulary) {
 	if binding.APIVersion != "runtimeconditions.io/v1alpha1" {
 		v.addf(node.BindingPath, "apiVersion must be runtimeconditions.io/v1alpha1")
 	}
-	if binding.Kind != "RuntimeConditionsGoBinding" && binding.Kind != "RuntimeConditionsPackage" {
-		v.addf(node.BindingPath, "kind must be RuntimeConditionsGoBinding or RuntimeConditionsPackage")
+	if binding.Kind != "RuntimeConditionsBinding" && binding.Kind != "RuntimeConditionsPackage" {
+		v.addf(node.BindingPath, "kind must be RuntimeConditionsBinding or RuntimeConditionsPackage")
 	}
 	if binding.Kind == "RuntimeConditionsPackage" && filepath.Base(node.BindingPath) == goBindingsManifest {
-		v.addf(node.BindingPath, "kind RuntimeConditionsGoBinding is required for %s", goBindingsManifest)
+		v.addf(node.BindingPath, "kind RuntimeConditionsBinding is required for %s", goBindingsManifest)
 	}
-	if binding.Kind == "RuntimeConditionsGoBinding" && filepath.Base(node.BindingPath) == goPackageBindingManifest {
+	if binding.Kind == "RuntimeConditionsBinding" && filepath.Base(node.BindingPath) == goPackageBindingManifest {
 		v.addf(node.BindingPath, "kind RuntimeConditionsPackage is required for %s", goPackageBindingManifest)
 	}
-	if binding.Metadata.Language != "" && binding.Metadata.Language != "go" {
+	if binding.Metadata.Language == "" {
+		v.addf(node.BindingPath, "metadata.language is required")
+	} else if binding.Metadata.Language != "go" {
 		v.addf(node.BindingPath, "metadata.language must be go")
 	}
 	bindingID := binding.extensionID()
@@ -1539,7 +1540,7 @@ func (b *bindingDocument) extensionDefinitionPath() string {
 }
 
 func findBindingManifest(dir string) (string, bool, error) {
-	for _, name := range []string{goBindingsManifest, legacyGoBindingManifest, goPackageBindingManifest} {
+	for _, name := range []string{goBindingsManifest, goPackageBindingManifest} {
 		path := filepath.Join(dir, name)
 		if _, err := os.Stat(path); err != nil {
 			if os.IsNotExist(err) {
@@ -1553,16 +1554,15 @@ func findBindingManifest(dir string) (string, bool, error) {
 }
 
 func definitionID(def extensionDefinition) string {
-	return def.Metadata.URI + ":" + def.Metadata.Version
+	return def.Metadata.ID
 }
 
 func validExtensionID(id string) bool {
-	index := strings.LastIndex(id, ":")
-	if index <= 0 || index == len(id)-1 {
+	parsed, err := url.Parse(id)
+	if err != nil {
 		return false
 	}
-	uri := id[:index]
-	return strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://")
+	return parsed.IsAbs() && parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https")
 }
 
 func isYAML(path string) bool {

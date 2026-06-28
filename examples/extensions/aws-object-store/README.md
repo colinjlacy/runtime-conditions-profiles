@@ -19,7 +19,7 @@ This extension is treated as a third-party extension. It is not first-party Runt
 
 ```yaml
 extensions:
-  - https://aws.example.com/runtimeconditions/object-store:v1alpha1
+  - https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 ```
 
 This extension defines:
@@ -70,12 +70,20 @@ its S3 client code. That package manifest maps SDK method calls to this
 extension vocabulary. The extension remains a standalone artifact that can be
 used without the SDK:
 
+The `definition` path shown here is a local repository override so the SDK demo
+can reference the standalone example extension without duplicating it inside the
+SDK package.
+
 ```yaml
 apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsPackage
 
+metadata:
+  package: github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-go-v2/service/s3
+  language: go
+
 extension:
-  id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
   definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
 
 go:
@@ -107,7 +115,7 @@ go:
 ```
 
 The application imports and calls the SDK normally. Runtime Conditions tooling
-reads the package manifest for direct imports and emits the profile condition
+reads the package manifest from resolved imports and emits the profile condition
 without requiring application code to import a separate declaration package.
 
 A downstream adapter can map this profile shape to provider-specific provisioning. For example, an adapter could create an object-storage request, publish non-sensitive connection properties through a ConfigMap, publish sensitive workload credentials through a Secret, and use the profile's `configuration.env[].name` values to wire those outputs into the workload Deployment.

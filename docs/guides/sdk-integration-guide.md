@@ -6,7 +6,7 @@
 
 This guide describes how SDK authors can package Runtime Conditions metadata so workloads that import those SDKs can generate accurate Runtime Conditions Profiles without adding application-specific configuration files.
 
-The core Runtime Conditions Profile specification defines the profile document and extension artifacts. This guide defines a packaging convention for libraries and SDKs that want their internal runtime integrations to surface into generated workload profiles.
+The core Runtime Conditions Profile specification defines the profile document and extension artifacts. This guide defines a packaging convention for SDKs and production libraries that want their internal runtime integrations to surface into generated workload profiles.
 
 ---
 
@@ -18,10 +18,9 @@ Examples:
 
 - A Go service calls `s3.Client.PutObject`.
 - A Python service calls `boto3.client("s3").put_object`.
-- A Java service calls `S3Client.putObject`.
 - A TypeScript service calls `new S3Client(...).send(new PutObjectCommand(...))`.
 
-Without SDK-provided metadata, a generator can see the imported SDK and the method call, but it cannot reliably know which Runtime Conditions extension owns that integration vocabulary or how the call maps to a Condition.
+Without SDK-provided metadata, a generator can see the imported SDK or production library and the method call, but it cannot reliably know which Runtime Conditions extension owns that integration vocabulary or how the call maps to a Condition.
 
 The SDK package convention solves this by allowing SDK authors to ship:
 
@@ -33,17 +32,17 @@ The SDK package convention solves this by allowing SDK authors to ship:
 
 # 2. SDK Author Responsibilities
 
-An SDK author SHOULD:
+An SDK or production library author SHOULD:
 
 - Identify SDK operations that imply external runtime integration requirements.
 - Define or reference the Runtime Conditions extension vocabulary for those requirements.
 - Ship a `runtimeconditions.package.yaml` manifest in the imported package.
-- Reference a resolvable extension definition from that manifest.
+- Package the extension definition as `runtimeconditions.extension.yaml` next to that manifest.
 - Publish any SDK-owned extension definition as a standalone artifact that can be used without the SDK.
 - Declare extension dependencies in the extension definition.
 - Provide source fixtures that prove representative SDK calls generate the expected Conditions.
 
-An SDK author MUST NOT use package metadata to extract or emit:
+An SDK or production library author MUST NOT use package metadata to extract or emit:
 
 - Secret values
 - Credentials
@@ -127,8 +126,7 @@ apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://aws.example.com/runtimeconditions/object-store
-  version: v1alpha1
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
@@ -146,11 +144,11 @@ The SDK-owned extension definition should declare any first-party or third-party
 ```yaml
 spec:
   dependencies:
-    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+    - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+    - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
 ```
 
-The SDK package does not need to vendor every dependency extension file. Dependencies are resolved by validators, generators, or adapters through configured registries, caches, or local extension roots.
+The SDK package does not need to vendor every dependency extension file. The SDK package is the source of the direct extension definition used for SDK extraction; that definition's dependency identifiers are then resolved by validators, generators, or adapters from their configured package, cache, registry, or development sources.
 
 ---
 
@@ -169,8 +167,7 @@ metadata:
   language: go
 
 extension:
-  id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 
 go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-go-v2/service/s3
@@ -242,7 +239,7 @@ Expected generated profile fragment:
 
 ```yaml
 extensions:
-  - https://aws.example.com/runtimeconditions/object-store:v1alpha1
+  - https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 
 conditions:
   - name: s3-object-store
@@ -273,8 +270,8 @@ These fixtures are important because package manifests are executable only throu
 Before publishing Runtime Conditions metadata, SDK authors SHOULD verify:
 
 - The package includes `runtimeconditions.package.yaml`.
-- The package manifest references a resolvable extension definition.
-- The extension identifier in the manifest matches `<metadata.uri>:<metadata.version>` in the extension file.
+- The package includes `runtimeconditions.extension.yaml` next to the manifest.
+- The extension identifier in the manifest matches `metadata.id` in the extension file.
 - The extension declares all vocabulary dependencies.
 - Any manifest `configuration` shape is defined by a declared extension dependency.
 - The manifest maps real SDK symbols, not internal implementation details that users never call.

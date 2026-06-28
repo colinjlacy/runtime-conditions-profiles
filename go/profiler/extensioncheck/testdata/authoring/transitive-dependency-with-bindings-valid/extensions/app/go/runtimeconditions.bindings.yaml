@@ -1,8 +1,8 @@
 apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://example.com/runtimeconditions/transitive-bindings-app:v1alpha1
+  extension: https://example.com/runtimeconditions/transitive-bindings-app/v1alpha1/runtimeconditions.extension.yaml
   extensionDefinition: ../app-v1alpha1.yaml
   language: go
 

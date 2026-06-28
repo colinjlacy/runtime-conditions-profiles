@@ -11,7 +11,7 @@
       <div class="header-inner">
         <a class="brand" href="index.html"><span class="brand-mark">RC</span> Runtime Conditions</a>
         <nav class="top-links" aria-label="Top links">
-          <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/docs/fifth-draft.md">Current Draft</a>
+          <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/docs/sixth-draft.md">Current Draft</a>
           <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/demos/README.md">Run Demo</a>
           <a href="reference.html">Source Map</a>
         </nav>
@@ -48,7 +48,7 @@
                 <tr><th>Extension Part</th><th>What It Does</th><th>Example</th></tr>
               </thead>
               <tbody>
-                <tr><td>`dependencies`</td><td>References vocabulary owned by other extensions.</td><td>`common-integrations:v1alpha1`</td></tr>
+                <tr><td>`dependencies`</td><td>References vocabulary owned by other extensions.</td><td>`https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml`</td></tr>
                 <tr><td>`kinds`</td><td>Defines Condition categories.</td><td>`api`, `datastore`, `cache`</td></tr>
                 <tr><td>`interfaceTypes`</td><td>Defines valid interface types for a kind.</td><td>`http` for `api`, `key_value` for `cache`</td></tr>
                 <tr><td>`conditionFields`</td><td>Defines extension-owned fields on Conditions.</td><td>`configuration`</td></tr>
@@ -71,8 +71,7 @@
               <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/extensions/common-integrations/common-integrations-v1alpha1.yaml">source</a>
             </div>
             <pre><code>metadata:
-  uri: https://runtimeconditions.io/extensions/common-integrations
-  version: v1alpha1
+  id: https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
@@ -169,7 +168,7 @@ spec:
             </div>
             <pre><code>spec:
   dependencies:
-    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+    - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
 
   conditionFields:
     - name: configuration
@@ -207,6 +206,7 @@ spec:
           <h2>Declaration packages follow ownership</h2>
           <p class="short">
             Common declarations come from `common-integrations/go`. Environment configuration contributes typed options from `env-configuration/go`.
+            The binding manifest is first-party generator metadata; it does not define extension vocabulary.
           </p>
           <div class="example">
             <div class="example-title">Dual-import declaration code</div>
@@ -223,11 +223,10 @@ common.Cache("request-cache",
           <div class="example">
             <div class="example-title">Option-only binding manifest</div>
             <pre><code>apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://runtimeconditions.io/extensions/env-configuration:v1alpha1
-  extensionDefinition: ../env-configuration-v1alpha1.yaml
+  extension: https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
   language: go
 
 go:
@@ -268,8 +267,8 @@ go:
           <div class="example">
             <div class="example-title">Profile declaration and extension-owned fields</div>
             <pre><code>extensions:
-  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
 
 conditions:
   - name: request-cache
@@ -296,8 +295,7 @@ conditions:
               <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/examples/extensions/aws-object-store/aws-object-store-v1alpha1.yaml">source</a>
             </div>
             <pre><code>metadata:
-  uri: https://aws.example.com/runtimeconditions/object-store
-  version: v1alpha1
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:

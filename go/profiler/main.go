@@ -33,7 +33,7 @@ func runGenerate(args []string) {
 	name := flags.String("name", "", "profile metadata.name")
 	workloadURI := flags.String("workload-uri", "", "workload.uri")
 	workloadVersion := flags.String("workload-version", "dev", "workload.version")
-	extensionsRoot := flags.String("extensions-root", "", "directory containing extension binding manifests; package manifests are discovered from direct imports")
+	extensionsRoot := flags.String("extensions-root", "", "development root containing extension definitions; package manifests are discovered from resolved Go imports")
 	skipValidation := flags.Bool("skip-validation", false, "skip extension manifest and generated profile validation")
 	disableGoPackages := flags.Bool("disable-go-packages", false, "disable semantic Go package loading and use syntax-only extraction")
 	requireGoPackages := flags.Bool("require-go-packages", false, "fail extraction when semantic Go package loading fails")

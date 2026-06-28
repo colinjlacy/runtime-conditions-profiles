@@ -3,4 +3,4 @@ root: extensions/broken
 languages:
   - go
 requireLanguagePackage: true
-wantErrorContains: "kind must be RuntimeConditionsGoBinding"
+wantErrorContains: "kind must be RuntimeConditionsBinding"

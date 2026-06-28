@@ -220,8 +220,8 @@ type goModule struct {
 
 const (
 	goBindingsManifest       = "runtimeconditions.bindings.yaml"
-	legacyGoBindingManifest  = "runtimeconditions.binding.yaml"
 	goPackageBindingManifest = "runtimeconditions.package.yaml"
+	defaultExtensionFile     = "runtimeconditions.extension.yaml"
 )
 
 type extractor struct {
@@ -427,7 +427,7 @@ func discoverGoPackageBindings(sourceDir string, files []parsedFile) ([]*goBindi
 }
 
 func isExtensionBindingManifest(name string) bool {
-	return name == goBindingsManifest || name == legacyGoBindingManifest
+	return name == goBindingsManifest
 }
 
 func findPackageBindingManifest(dir string) (string, bool, error) {
@@ -453,7 +453,7 @@ func readGoBinding(path string) (*goBinding, error) {
 	if err := yaml.Unmarshal(data, &document); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	if document.Kind != "RuntimeConditionsGoBinding" && document.Kind != "RuntimeConditionsPackage" {
+	if document.Kind != "RuntimeConditionsBinding" && document.Kind != "RuntimeConditionsPackage" {
 		return nil, fmt.Errorf("%s: unsupported binding kind %q", path, document.Kind)
 	}
 
@@ -465,7 +465,16 @@ func readGoBinding(path string) (*goBinding, error) {
 	}
 
 	if extensionID == "" {
+		if document.Kind == "RuntimeConditionsPackage" {
+			return nil, fmt.Errorf("%s: extension.id is required", path)
+		}
 		return nil, fmt.Errorf("%s: metadata.extension is required", path)
+	}
+	if document.Metadata.Language == "" {
+		return nil, fmt.Errorf("%s: metadata.language is required", path)
+	}
+	if document.Metadata.Language != "go" {
+		return nil, fmt.Errorf("%s: metadata.language must be go", path)
 	}
 	if document.Go.ImportPath == "" {
 		return nil, fmt.Errorf("%s: go.importPath is required", path)
@@ -474,13 +483,14 @@ func readGoBinding(path string) (*goBinding, error) {
 		return nil, fmt.Errorf("%s: go.declarations or go.options must not be empty", path)
 	}
 	definitionPath := extensionDefinition
-	if definitionPath != "" && !filepath.IsAbs(definitionPath) {
+	if definitionPath == "" {
+		definitionPath = filepath.Join(filepath.Dir(path), defaultExtensionFile)
+	}
+	if !filepath.IsAbs(definitionPath) {
 		definitionPath = filepath.Join(filepath.Dir(path), definitionPath)
 	}
-	if definitionPath != "" {
-		if _, err := os.Stat(definitionPath); err != nil {
-			return nil, fmt.Errorf("%s: extension definition %q: %w", path, definitionPath, err)
-		}
+	if _, err := os.Stat(definitionPath); err != nil {
+		return nil, fmt.Errorf("%s: extension definition %q: %w", path, definitionPath, err)
 	}
 	return &goBinding{
 		ManifestPath:            path,

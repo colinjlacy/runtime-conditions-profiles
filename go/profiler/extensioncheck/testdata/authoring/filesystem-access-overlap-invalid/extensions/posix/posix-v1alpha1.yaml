@@ -2,12 +2,11 @@ apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/filesystem-overlap-posix
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/filesystem-overlap-posix/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   dependencies:
-    - https://example.com/runtimeconditions/filesystem-overlap-base:v1alpha1
+    - https://example.com/runtimeconditions/filesystem-overlap-base/v1alpha1/runtimeconditions.extension.yaml
   conditionFields:
     - name: access
       appliesToKinds:

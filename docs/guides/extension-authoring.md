@@ -48,8 +48,7 @@ apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://runtimeconditions.io/extensions/common-integrations
-  version: v1alpha1
+  id: https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
@@ -83,12 +82,11 @@ apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://runtimeconditions.io/extensions/env-configuration
-  version: v1alpha1
+  id: https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   dependencies:
-    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+    - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
 
   conditionFields:
     - name: configuration
@@ -277,8 +275,8 @@ The generated profile lists both extensions because both packages directly contr
 
 ```yaml
 extensions:
-  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
 ```
 
 If a workload imports only `common-integrations/go`, the profile lists only `common-integrations`. If it imports `env-configuration/go` but does not apply an env option to a Condition, the profile does not list `env-configuration`.
@@ -287,30 +285,30 @@ Adapters and validators still resolve transitive extension dependencies from ext
 
 ---
 
-# 7. Binding Manifest Option Augmentation
+# 7. Declarative Code Package Bindings
 
-An extension-side Go declaration package uses `runtimeconditions.bindings.yaml`.
+An extension-side declarative code package uses `runtimeconditions.bindings.yaml`.
 That binding manifest maps source calls back to extension-owned profile
 vocabulary.
 
-For first-party Go tooling support:
+For first-party tooling support:
 
-- `runtimeconditions.bindings.yaml` must use `kind: RuntimeConditionsGoBinding`.
-- `metadata.extension` must match the extension definition identifier, `<metadata.uri>:<metadata.version>`.
-- `metadata.extensionDefinition`, when present, must resolve to the extension definition file.
-- `metadata.language`, when present, must be `go`.
-- `go.importPath` and `go.package` are required.
-- At least one `go.declarations` or `go.options` entry is required.
+- `runtimeconditions.bindings.yaml` must use `kind: RuntimeConditionsBinding`.
+- `metadata.extension` must match the extension definition `metadata.id`.
+- The package should include `runtimeconditions.extension.yaml` next to the binding manifest, unless the extension definition is intentionally vendored elsewhere in the same package artifact or supplied by a local development override.
+- `metadata.extensionDefinition` is a vendored or local development override; when present, it must resolve to the extension definition file.
+- `metadata.language` must identify the language section used by the binding.
+- The language-specific package identity fields are required.
+- At least one language-specific declaration or option mapping is required.
 
-The binding manifest for a base declaration package maps source calls to Conditions:
+This Go example shows a base declaration package mapping source calls to Conditions. The same manifest structure is intended for future language sections, with the language-specific mapping stored under that language's section.
 
 ```yaml
 apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-  extensionDefinition: ../common-integrations-v1alpha1.yaml
+  extension: https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
   language: go
 
 go:
@@ -328,15 +326,14 @@ go:
           engineArg: 0
 ```
 
-The binding manifest for an option-only extension maps source calls to fields that can augment compatible Conditions:
+This Go example shows an option-only extension mapping source calls to fields that can augment compatible Conditions:
 
 ```yaml
 apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://runtimeconditions.io/extensions/env-configuration:v1alpha1
-  extensionDefinition: ../env-configuration-v1alpha1.yaml
+  extension: https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
   language: go
 
 go:
@@ -355,18 +352,18 @@ go:
         name: 1
 ```
 
-Generators use `go.options` only when an option call appears inside a compatible declaration call. Standalone option calls are ignored for profile emission.
+Generators use language-specific option mappings only when an option call appears inside a compatible declaration call. Standalone option calls are ignored for profile emission.
 
-A `go.declarations` entry must map to extension-resolved vocabulary:
+A declaration entry must map to extension-resolved vocabulary:
 
 - `kind` must resolve to exactly one kind.
 - `interfaceType`, when present, must resolve to exactly one interface type for `kind`.
 - `values` must target supported binding targets and defined field values.
 - A declaration may name either a package-level `function` or a receiver `method`.
 
-A `go.options` entry must map to fields that are valid for the declaration scope or for the option's `appliesToKinds` and `appliesToInterfaceTypes` scope. For configuration-style targets, the target field and the configured property field must both be defined in that same scope.
+A package-level option entry must map to fields that are valid for the declaration scope or for the option's `appliesToKinds` and `appliesToInterfaceTypes` scope. For configuration-style targets, the target field and the configured property field must both be defined in that same scope.
 
-The Go declaration package must match the binding manifest:
+The declarative code package must match the binding manifest. In the current Go implementation, that means:
 
 - The parsed Go package name must match `go.package`.
 - Every manifest constant must exist in Go and have the same string value.
@@ -384,9 +381,9 @@ cd go/profiler
 go run . validate-extension -root ../../extensions/env-configuration
 ```
 
-The validator loads the target extension definition, resolves dependency extension definitions, checks the binding manifest against the resolved vocabulary, and checks that the Go declaration package contains the functions, methods, constructors, constants, and argument positions named by the binding manifest.
+The validator loads the target extension definition, resolves dependency extension definitions from the provided package or development roots, checks the binding manifest against the resolved vocabulary, and checks that the declarative code package contains the functions, methods, constructors, constants, and argument positions named by the binding manifest.
 
-When validating a single extension directory, dependencies are discovered from sibling extension directories and any explicit `--catalog-root` values. When validating a collection root, only definitions under that root and explicit catalog roots are part of the catalog. Test fixtures use this behavior to keep independent fixture catalogs isolated even when they reuse example extension identifiers.
+When validating a single extension directory in this repository, sibling extension directories are included as a local development convenience. Published packages should not depend on repository sibling layout; they should package their own extension definition and declare exact dependency identifiers.
 
 ---
 
@@ -402,8 +399,8 @@ When validating a single extension directory, dependencies are discovered from s
 - Scope schemas only to kinds and interface types that resolve in the extension's dependency graph.
 - Keep schemas focused on your extension's fields and allow unrelated properties.
 - Export only declaration functions for vocabulary your package owns.
-- For additive Go packages, export typed options that satisfy base package marker interfaces.
-- Describe additive Go options with binding-level `go.options` mappings.
-- Keep `runtimeconditions.bindings.yaml` identity, package names, symbols, constants, and argument indexes synchronized with the Go package.
+- For additive declarative packages, export helper APIs that are compatible with the base declaration package contracts.
+- Describe additive options with binding-level language mappings such as `go.options`.
+- Keep `runtimeconditions.bindings.yaml` identity, package names, symbols, constants, and argument indexes synchronized with the language package.
 - Run `go run . validate-extension -root <extension-dir>` before publishing first-party tooling support.
 - Do not encode secrets, concrete target-environment values, or provider-specific fulfillment choices.

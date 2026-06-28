@@ -6,7 +6,7 @@ metadata:
   language: go
 
 extension:
-  id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
   definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
 
 go:

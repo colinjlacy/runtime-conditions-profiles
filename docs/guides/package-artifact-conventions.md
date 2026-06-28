@@ -4,40 +4,59 @@
 
 **Non-normative implementation guidance**
 
-This document defines the packaging convention used by SDKs and libraries that want Runtime Conditions generators to discover extension metadata from normal application imports.
+This document defines the packaging convention used by declarative extension packages, SDKs, and production libraries that want Runtime Conditions generators to discover extension metadata from normal application imports.
 
-The convention is intentionally outside the Runtime Conditions Profile document shape. A generated profile never embeds `runtimeconditions.package.yaml`; the manifest exists only to help generators map source code to profile Conditions.
+The convention is intentionally outside the Runtime Conditions Profile document shape. A generated profile never embeds `runtimeconditions.bindings.yaml`, `runtimeconditions.package.yaml`, or package-local extension files; these artifacts exist only to help generators map source code to profile Conditions.
 
 ---
 
-# 1. Required Files
+# 1. Package Artifact Types
 
-An imported library that supports Runtime Conditions discovery SHOULD include a package manifest in the runtime-relevant package directory:
+First-party tooling recognizes three package-adjacent files:
+
+| File | Artifact | Purpose |
+| ---- | -------- | ------- |
+| `runtimeconditions.extension.yaml` | Extension definition | Contains a `RuntimeConditionsExtensionDefinition` document. Its allowed fields are defined by the core draft: `apiVersion`, `kind`, `metadata.id`, and `spec`. |
+| `runtimeconditions.bindings.yaml` | Binding manifest | Maps declarative helper APIs to extension-owned Condition vocabulary. This is a first-party tooling convention, not profile vocabulary. |
+| `runtimeconditions.package.yaml` | Package manifest | Maps SDK or production library APIs to extension-owned Condition vocabulary. This is a first-party tooling convention, not profile vocabulary. |
+
+The core draft defines the extension definition document shape. This guide only names where a package should place that document for first-party generator discovery.
+
+An imported declarative extension package SHOULD include a binding manifest in the package directory that exposes its declaration APIs.
+
+An imported SDK or production library package SHOULD include a package manifest in the package directory that exposes the mapped API surface.
+
+Both manifest types MUST identify a Runtime Conditions extension definition. That extension definition is a standalone artifact: it can be used without the code package, and these manifests only map source symbols to that extension vocabulary.
+
+Published packages that follow first-party tooling conventions SHOULD ship the extension definition next to whichever manifest they provide:
 
 ```text
-runtimeconditions.package.yaml
+runtimeconditions.extension.yaml
 ```
 
-The package manifest MUST reference a Runtime Conditions extension definition. That extension definition is a standalone artifact: it can be used without the SDK, and the SDK manifest only maps SDK symbols to that extension vocabulary.
-
-An SDK or library can reference an extension definition shipped inside the package, elsewhere in the same module or repository, or in a configured extension catalog. For local files, `extension.definition` is resolved relative to the package manifest.
-
-Example:
+Declarative extension package example:
 
 ```text
-examples/extensions/aws-object-store/
-  aws-object-store-v1alpha1.yaml
+declarations/
+  declarations.go
+  runtimeconditions.bindings.yaml
+  runtimeconditions.extension.yaml
+```
 
+SDK or production library package example:
+
+```text
 service/s3/
   client.go
   runtimeconditions.package.yaml
+  runtimeconditions.extension.yaml
 ```
 
-The package manifest identifies language-specific source symbols. The extension definition identifies the Condition vocabulary those symbols require.
+The manifest identifies language-specific source symbols. The extension definition identifies the Condition vocabulary those symbols require.
 
 ## 1.1 Optional Files
 
-SDK authors MAY also include:
+Package authors MAY also include:
 
 ```text
 README.md
@@ -46,7 +65,7 @@ testdata/
 runtimeconditions.schema.json
 ```
 
-Fixtures and tests are strongly recommended for SDKs with non-trivial mappings.
+Fixtures and tests are strongly recommended for packages with non-trivial mappings.
 
 ---
 
@@ -63,8 +82,8 @@ metadata:
   language: <language id>
 
 extension:
-  id: <extension-uri>:<extension-version>
-  definition: <relative path to extension definition>
+  id: <extension id URI>
+  definition: <optional vendored or local override path>
 
 <language-specific section>: {}
 ```
@@ -76,15 +95,51 @@ Required fields:
 | `apiVersion` | YES | Runtime Conditions API version |
 | `kind` | YES | Must be `RuntimeConditionsPackage` |
 | `metadata.package` | YES | Language package identity |
-| `metadata.language` | YES | Language id such as `go`, `python`, `java`, `javascript`, or `typescript` |
+| `metadata.language` | YES | Language id such as `go`, `python`, `javascript`, or `typescript` |
 | `extension.id` | YES | Exact extension identifier used by generated profiles |
-| `extension.definition` | YES | Relative path to a resolvable extension definition |
+| `extension.definition` | NO | Package-manifest override path for vendored or local development layouts |
 
 The package MAY include one or more language-specific sections. A generator ignores sections for languages it does not support.
 
+When `extension.definition` is omitted, first-party tooling loads `runtimeconditions.extension.yaml` from the same package artifact as the manifest. When it is present, the path is resolved relative to `runtimeconditions.package.yaml` and must point to an extension definition whose `metadata.id` exactly matches `extension.id`.
+
 ---
 
-# 3. Go Section
+# 3. Binding Manifest Shape
+
+A declarative extension package binding manifest uses this envelope:
+
+```yaml
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: <extension id URI>
+  extensionDefinition: <optional vendored or local override path>
+  language: <language id>
+
+<language-specific section>: {}
+```
+
+Required fields:
+
+| Field | Required | Description |
+| ----- | -------- | ----------- |
+| `apiVersion` | YES | Runtime Conditions API version |
+| `kind` | YES | Must be `RuntimeConditionsBinding` |
+| `metadata.extension` | YES | Exact extension identifier used by generated profiles |
+| `metadata.extensionDefinition` | NO | Binding-manifest override path for vendored or local development layouts |
+| `metadata.language` | YES | Language id; must match the generator language |
+
+The binding manifest maps declarative helper functions to extension-owned vocabulary. It does not define vocabulary itself.
+
+When `metadata.extensionDefinition` is omitted, first-party tooling loads `runtimeconditions.extension.yaml` from the same package artifact as the manifest. When it is present, the path is resolved relative to `runtimeconditions.bindings.yaml` and must point to an extension definition whose `metadata.id` exactly matches `metadata.extension`.
+
+Override paths are manifest-specific: `RuntimeConditionsPackage` uses `extension.definition`, and `RuntimeConditionsBinding` uses `metadata.extensionDefinition`. Published packages should prefer package-local `runtimeconditions.extension.yaml`; override paths are mainly for vendored layouts, local development, and fixtures.
+
+---
+
+# 4. Go Section
 
 The current example implements a Go section.
 
@@ -173,9 +228,9 @@ options:
     valueArg: 0
 ```
 
-Nested options are useful for no-op declaration packages. SDK operation manifests usually prefer static values or future language-specific extraction rules.
+Nested options are useful for no-op declaration packages. Operation manifests for SDKs and production libraries usually prefer static values or future language-specific extraction rules.
 
-Configuration mappings let SDK authors surface hidden SDK inputs without emitting concrete values. For example, an SDK can state that generated S3 Conditions require a `bucket`, `region`, `accessKeyId`, and `secretAccessKey`, and can name the environment variables that the workload expects for those inputs. The generated profile carries the names; adapters map those properties to platform-provided ConfigMaps, Secrets, service URLs, or other delivery mechanisms.
+Configuration mappings let package authors surface hidden package inputs without emitting concrete values. For example, an SDK can state that generated S3 Conditions require a `bucket`, `region`, `accessKeyId`, and `secretAccessKey`, and can name the environment variables that the workload expects for those inputs. The generated profile carries the names; adapters map those properties to platform-provided ConfigMaps, Secrets, service URLs, or other delivery mechanisms.
 
 Package-level options let additive extension packages contribute fields to declarations owned by another package. For example, the Environment Configuration Go package exports only env option functions:
 
@@ -237,11 +292,13 @@ A generator applies a package-level option only when the option call appears ins
 
 ---
 
-# 4. Language Placement Conventions
+# 5. Language Placement Conventions
 
 Generators SHOULD use language-native package resolution and then check conventional manifest locations. They SHOULD NOT recursively scan dependency trees looking for arbitrary manifest files.
 
-## 4.1 Go
+The current Go generator supports these conventions. The Python, JavaScript, and TypeScript paths below describe the intended package-resolution convention for future language support.
+
+## 5.1 Go
 
 For a Go import:
 
@@ -252,12 +309,13 @@ import "github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-
 The generator resolves the import path to a package directory and checks:
 
 ```text
+<resolved package directory>/runtimeconditions.bindings.yaml
 <resolved package directory>/runtimeconditions.package.yaml
 ```
 
 In local development, `go.mod` `replace` directives can resolve a module to a local directory.
 
-## 4.2 Python
+## 5.2 Python
 
 For Python imports:
 
@@ -269,12 +327,13 @@ from vendor_sdk.s3 import Client
 A Python generator should resolve the imported distribution or package directory and check:
 
 ```text
+<package directory>/runtimeconditions.bindings.yaml
 <package directory>/runtimeconditions.package.yaml
 ```
 
-For wheels, the manifest should be included as package data in the runtime package or distribution metadata.
+For wheels, the manifest should be included as package data in the imported package or distribution metadata.
 
-## 4.3 JavaScript and TypeScript
+## 5.3 JavaScript and TypeScript
 
 For JavaScript or TypeScript imports:
 
@@ -285,48 +344,40 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 A generator should resolve the npm package root using normal Node package resolution and check:
 
 ```text
+<package root>/runtimeconditions.bindings.yaml
 <package root>/runtimeconditions.package.yaml
 ```
 
 For subpath exports, a generator MAY also check:
 
 ```text
+<resolved subpath directory>/runtimeconditions.bindings.yaml
 <resolved subpath directory>/runtimeconditions.package.yaml
 ```
 
 This convention does not require a `package.json` property.
 
-## 4.4 Java
-
-For Java dependencies, the manifest should be packaged as a classpath resource:
-
-```text
-META-INF/runtimeconditions/runtimeconditions.package.yaml
-META-INF/runtimeconditions/<extension-name>-<version>.yaml
-```
-
-A Java generator should resolve imported or referenced artifacts through the build system classpath and inspect only the matching artifacts.
-
 ---
 
-# 5. Extension Definition Relationship
+# 6. Extension Definition Relationship
 
-The manifest's `extension.id` must match the referenced extension definition.
+The manifest's extension identifier must match the extension definition it resolves:
+
+- `RuntimeConditionsPackage` compares `extension.id` with the extension definition `metadata.id`.
+- `RuntimeConditionsBinding` compares `metadata.extension` with the extension definition `metadata.id`.
 
 Given:
 
 ```yaml
 extension:
-  id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 ```
 
-The referenced extension definition should contain:
+The resolved `runtimeconditions.extension.yaml`, or the file reached through an allowed override path, should contain:
 
 ```yaml
 metadata:
-  uri: https://aws.example.com/runtimeconditions/object-store
-  version: v1alpha1
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 ```
 
 The extension definition owns vocabulary and dependencies:
@@ -348,17 +399,17 @@ spec:
         - aws.s3
 ```
 
-The package manifest maps source symbols to that vocabulary. It does not define vocabulary itself.
+The package or binding manifest maps source symbols to that vocabulary. It does not define vocabulary itself.
 
-If a package manifest emits `configuration`, the referenced extension definition should define that configuration field in the relevant scope, or depend on another extension that defines the configuration shape it uses.
+If a manifest emits `configuration`, the resolved extension definition should define that configuration field in the relevant scope, or depend on another extension that defines the configuration shape it uses.
 
 ---
 
-# 6. Safety Rules
+# 7. Safety Rules
 
-Generators MUST treat package manifests as static metadata. They MUST NOT execute package code to discover Conditions.
+Generators MUST treat binding and package manifests as static metadata. They MUST NOT execute package code to discover Conditions.
 
-Package manifests SHOULD NOT instruct generators to read:
+Binding and package manifests SHOULD NOT instruct generators to read:
 
 - Secret values
 - Environment variable values
@@ -371,7 +422,7 @@ Generators MAY read literal source values, constants, type names, method names, 
 
 ---
 
-# 7. Compatibility
+# 8. Compatibility
 
 Manifest compatibility is governed by `apiVersion`.
 
@@ -379,7 +430,8 @@ Generators SHOULD ignore unknown manifest fields when they can still interpret t
 
 - `kind` is unsupported
 - `extension.id` is missing
-- `extension.definition` is missing or cannot be read
+- `metadata.extension` is missing
+- The resolved extension definition cannot be loaded
 - The language section required for the current generator is missing
 - A declaration cannot be interpreted safely
 

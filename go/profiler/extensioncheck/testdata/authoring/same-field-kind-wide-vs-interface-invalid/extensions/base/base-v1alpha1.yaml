@@ -2,8 +2,7 @@ apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/wide-field-base
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/wide-field-base/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:

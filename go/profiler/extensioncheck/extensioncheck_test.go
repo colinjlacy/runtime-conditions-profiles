@@ -120,8 +120,7 @@ func TestValidateExtensionResolvesDependenciesBeforeBindings(t *testing.T) {
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/base
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/base/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
@@ -131,10 +130,10 @@ spec:
       targetKind: base.cache
 `,
 		filepath.Join(base, "go", goBindingsManifest): `apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://example.com/runtimeconditions/base:v1alpha1
+  extension: https://example.com/runtimeconditions/base/v1alpha1/runtimeconditions.extension.yaml
   extensionDefinition: ../base-v1alpha1.yaml
   language: go
 
@@ -160,12 +159,11 @@ func Cache(name string) Declaration {
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/child
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/child/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   dependencies:
-    - https://example.com/runtimeconditions/base:v1alpha1
+    - https://example.com/runtimeconditions/base/v1alpha1/runtimeconditions.extension.yaml
   conditionFields:
     - name: configuration
       appliesToKinds:
@@ -180,10 +178,10 @@ spec:
         - url
 `,
 		filepath.Join(child, "go", goBindingsManifest): `apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://example.com/runtimeconditions/child:v1alpha1
+  extension: https://example.com/runtimeconditions/child/v1alpha1/runtimeconditions.extension.yaml
   extensionDefinition: ../child-v1alpha1.yaml
   language: go
 
@@ -229,18 +227,17 @@ func TestValidateExtensionRejectsBindingWithoutGoDeclaration(t *testing.T) {
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/broken
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/broken/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
     - name: broken.cache
 `,
 		filepath.Join(extension, "go", goBindingsManifest): `apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://example.com/runtimeconditions/broken:v1alpha1
+  extension: https://example.com/runtimeconditions/broken/v1alpha1/runtimeconditions.extension.yaml
   extensionDefinition: ../broken-v1alpha1.yaml
   language: go
 
@@ -283,18 +280,17 @@ func TestValidateExtensionRejectsBindingVocabularyOutsideResolvedGraph(t *testin
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/broken
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/broken/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
     - name: broken.cache
 `,
 		filepath.Join(extension, "go", goBindingsManifest): `apiVersion: runtimeconditions.io/v1alpha1
-kind: RuntimeConditionsGoBinding
+kind: RuntimeConditionsBinding
 
 metadata:
-  extension: https://example.com/runtimeconditions/broken:v1alpha1
+  extension: https://example.com/runtimeconditions/broken/v1alpha1/runtimeconditions.extension.yaml
   extensionDefinition: ../broken-v1alpha1.yaml
   language: go
 
@@ -338,8 +334,7 @@ func TestValidateExtensionRejectsOverlappingConditionFieldDefinitions(t *testing
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/base
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/base/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
@@ -358,12 +353,11 @@ spec:
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://example.com/runtimeconditions/child
-  version: v1alpha1
+  id: https://example.com/runtimeconditions/child/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   dependencies:
-    - https://example.com/runtimeconditions/base:v1alpha1
+    - https://example.com/runtimeconditions/base/v1alpha1/runtimeconditions.extension.yaml
   conditionFields:
     - name: configuration
       appliesToKinds:

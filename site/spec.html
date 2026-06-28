@@ -11,7 +11,7 @@
       <div class="header-inner">
         <a class="brand" href="index.html"><span class="brand-mark">RC</span> Runtime Conditions</a>
         <nav class="top-links" aria-label="Top links">
-          <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/docs/fifth-draft.md">Current Draft</a>
+          <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/docs/sixth-draft.md">Current Draft</a>
           <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/demos/README.md">Run Demo</a>
           <a href="reference.html">Source Map</a>
         </nav>
@@ -45,7 +45,7 @@
           <div class="example">
             <div class="example-title">
               <span>Required top-level fields</span>
-              <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/docs/fifth-draft.md">full draft</a>
+              <a href="https://github.com/colinjlacy/runtime-conditions-profiles/blob/main/docs/sixth-draft.md">full draft</a>
             </div>
             <pre><code>apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsProfile
@@ -80,9 +80,9 @@ conditions: []</code></pre>
           <div class="example">
             <div class="example-title">A profile declares every vocabulary source it uses</div>
             <pre><code>extensions:
-  - https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1</code></pre>
+  - https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml</code></pre>
           </div>
         </section>
 

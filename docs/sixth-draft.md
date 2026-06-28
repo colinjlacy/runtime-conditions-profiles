@@ -8,8 +8,8 @@ This document defines the core Runtime Conditions Profile format.
 
 First-party extension drafts define common integration vocabulary separately:
 
-- `https://runtimeconditions.io/extensions/common-integrations:v1alpha1`
-- `https://runtimeconditions.io/extensions/env-configuration:v1alpha1`
+- `https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml`
+- `https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml`
 
 ---
 
@@ -78,8 +78,8 @@ workload:
   version: v1.2.3
 
 extensions:
-  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
 
 conditions:
   - name: primary-db
@@ -267,25 +267,19 @@ Implementations MAY bundle support for first-party extensions, but generated pro
 
 ## 5.1 Extension Identifiers
 
-Extension identifiers MUST have this form:
+Extension identifiers are absolute URI strings.
 
-```text
-<uri>:<version>
-```
+An extension identifier MUST be non-empty and MUST be an absolute URI with a scheme.
 
-The version delimiter is the final colon in the identifier. The extension URI is everything before that delimiter. The version is everything after that delimiter.
-
-The extension URI MUST be an absolute HTTP or HTTPS URI.
-
-The version MUST be a non-empty string.
-
-This specification does not define the syntax or semantics of extension versions. Version interpretation is defined by the extension author and the Adapter.
+The URI scheme identifies the resolution mechanism. This specification does not restrict extension identifiers to a specific URI scheme.
 
 Examples:
 
-- `https://runtimeconditions.io/extensions/common-integrations:v1alpha1`
-- `https://runtimeconditions.io/extensions/env-configuration:v1alpha1`
-- `https://extensions.example.com/runtimeconditions/aws-object-store:2026.06.0`
+- `https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml`
+- `https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml`
+- `https://extensions.example.com/runtimeconditions/aws-object-store/2026.06.0/runtimeconditions.extension.yaml`
+- `file:///opt/runtimeconditions/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml`
+- `oci://ghcr.io/example/runtimeconditions/extensions/common-integrations:v1alpha1`
 
 Extension identifiers are case-sensitive.
 
@@ -293,8 +287,8 @@ Extension identifiers are case-sensitive.
 
 ```yaml
 extensions:
-  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
 ```
 
 The `extensions` array MUST NOT contain duplicate extension identifiers.
@@ -304,6 +298,8 @@ Each `extensions` item MUST be a valid extension identifier.
 Declared extensions MAY depend on other extensions.
 
 Declared extensions and transitive dependencies form the resolved extension set.
+
+When an extension identifier resolves to an extension definition, the resolved definition's `metadata.id` MUST exactly equal that identifier.
 
 Dependency resolution MUST be deterministic and MUST NOT depend on declaration order.
 
@@ -327,8 +323,7 @@ apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://runtimeconditions.io/extensions/common-integrations
-  version: v1alpha1
+  id: https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds: []
@@ -341,11 +336,7 @@ spec:
 | `metadata` | object | YES | Extension identity |
 | `spec` | object | YES | Extension vocabulary, dependencies, and validation schemas |
 
-`metadata.uri` MUST identify the extension URI and MUST be an absolute HTTP or HTTPS URI.
-
-`metadata.version` MUST identify the extension version.
-
-`<metadata.uri>:<metadata.version>` MUST be a valid extension identifier.
+`metadata.id` MUST identify the extension definition and MUST be a valid extension identifier.
 
 ## 6.2 Extension Spec Fields
 
@@ -430,8 +421,7 @@ apiVersion: runtimeconditions.io/v1alpha1
 kind: RuntimeConditionsExtensionDefinition
 
 metadata:
-  uri: https://aws.example.com/runtimeconditions/object-store
-  version: v1alpha1
+  id: https://aws.example.com/runtimeconditions/object-store/v1alpha1/runtimeconditions.extension.yaml
 
 spec:
   kinds:
@@ -772,7 +762,7 @@ workload:
   version: v1.2.3
 
 extensions:
-  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
 
 conditions:
   - name: primary-db
@@ -806,8 +796,8 @@ workload:
   version: v1.2.3
 
 extensions:
-  - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
 
 conditions:
   - name: primary-db
