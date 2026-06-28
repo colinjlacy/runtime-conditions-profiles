@@ -12,20 +12,25 @@ The convention is intentionally outside the Runtime Conditions Profile document 
 
 # 1. Required Files
 
-An imported library that supports Runtime Conditions discovery SHOULD include these files in the runtime-relevant package directory:
+An imported library that supports Runtime Conditions discovery SHOULD include a package manifest in the runtime-relevant package directory:
 
 ```text
 runtimeconditions.package.yaml
-<extension-name>-<version>.yaml
 ```
+
+The package manifest MUST reference a Runtime Conditions extension definition. That extension definition is a standalone artifact: it can be used without the SDK, and the SDK manifest only maps SDK symbols to that extension vocabulary.
+
+An SDK or library can reference an extension definition shipped inside the package, elsewhere in the same module or repository, or in a configured extension catalog. For local files, `extension.definition` is resolved relative to the package manifest.
 
 Example:
 
 ```text
+examples/extensions/aws-object-store/
+  aws-object-store-v1alpha1.yaml
+
 service/s3/
   client.go
   runtimeconditions.package.yaml
-  aws-object-store-v1alpha1.yaml
 ```
 
 The package manifest identifies language-specific source symbols. The extension definition identifies the Condition vocabulary those symbols require.
@@ -73,7 +78,7 @@ Required fields:
 | `metadata.package` | YES | Language package identity |
 | `metadata.language` | YES | Language id such as `go`, `python`, `java`, `javascript`, or `typescript` |
 | `extension.id` | YES | Exact extension identifier used by generated profiles |
-| `extension.definition` | YES | Relative path to the extension definition shipped by the package |
+| `extension.definition` | YES | Relative path to a resolvable extension definition |
 
 The package MAY include one or more language-specific sections. A generator ignores sections for languages it does not support.
 
@@ -313,7 +318,7 @@ Given:
 ```yaml
 extension:
   id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  definition: aws-object-store-v1alpha1.yaml
+  definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
 ```
 
 The referenced extension definition should contain:
@@ -328,17 +333,24 @@ The extension definition owns vocabulary and dependencies:
 
 ```yaml
 spec:
-  dependencies:
-    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
-
   kinds:
     - name: aws.object_store
+
+  interfaceTypes:
+    - name: aws.s3
+      targetKind: aws.object_store
+
+  conditionFields:
+    - name: configuration
+      appliesToKinds:
+        - aws.object_store
+      appliesToInterfaceTypes:
+        - aws.s3
 ```
 
 The package manifest maps source symbols to that vocabulary. It does not define vocabulary itself.
 
-If a package manifest emits `configuration`, the extension definition should depend on `https://runtimeconditions.io/extensions/env-configuration:v1alpha1` or another extension that defines the configuration shape it uses.
+If a package manifest emits `configuration`, the referenced extension definition should define that configuration field in the relevant scope, or depend on another extension that defines the configuration shape it uses.
 
 ---
 

@@ -26,7 +26,7 @@ Without SDK-provided metadata, a generator can see the imported SDK and the meth
 The SDK package convention solves this by allowing SDK authors to ship:
 
 - A Runtime Conditions package manifest
-- The extension definition owned by that SDK or vendor
+- A reference to the extension definition owned by that SDK, vendor, or ecosystem
 - Language-specific symbol mappings from SDK calls to Conditions
 
 ---
@@ -38,7 +38,8 @@ An SDK author SHOULD:
 - Identify SDK operations that imply external runtime integration requirements.
 - Define or reference the Runtime Conditions extension vocabulary for those requirements.
 - Ship a `runtimeconditions.package.yaml` manifest in the imported package.
-- Ship the extension definition file referenced by that manifest.
+- Reference a resolvable extension definition from that manifest.
+- Publish any SDK-owned extension definition as a standalone artifact that can be used without the SDK.
 - Declare extension dependencies in the extension definition.
 - Provide source fixtures that prove representative SDK calls generate the expected Conditions.
 
@@ -130,10 +131,6 @@ metadata:
   version: v1alpha1
 
 spec:
-  dependencies:
-    - https://runtimeconditions.io/extensions/common-integrations:v1alpha1
-    - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
-
   kinds:
     - name: aws.object_store
 
@@ -141,6 +138,8 @@ spec:
     - name: aws.s3
       targetKind: aws.object_store
 ```
+
+An extension can be used directly by profiles and adapters without any SDK package. An SDK package that wants generation support must leverage an extension by referencing it from its package manifest; the package manifest does not define vocabulary by itself.
 
 The SDK-owned extension definition should declare any first-party or third-party dependencies it relies on. For example, an AWS RDS extension that reuses common datastore vocabulary and environment configuration should declare dependencies on:
 
@@ -151,7 +150,7 @@ spec:
     - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 ```
 
-The SDK package should ship the extension definition it owns. It does not need to vendor every dependency extension file. Dependencies are resolved by validators, generators, or adapters through configured registries, caches, or local extension roots.
+The SDK package does not need to vendor every dependency extension file. Dependencies are resolved by validators, generators, or adapters through configured registries, caches, or local extension roots.
 
 ---
 
@@ -171,7 +170,7 @@ metadata:
 
 extension:
   id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  definition: aws-object-store-v1alpha1.yaml
+  definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
 
 go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-go-v2/service/s3
@@ -244,7 +243,6 @@ Expected generated profile fragment:
 ```yaml
 extensions:
   - https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  - https://runtimeconditions.io/extensions/env-configuration:v1alpha1
 
 conditions:
   - name: s3-object-store
@@ -275,7 +273,7 @@ These fixtures are important because package manifests are executable only throu
 Before publishing Runtime Conditions metadata, SDK authors SHOULD verify:
 
 - The package includes `runtimeconditions.package.yaml`.
-- The package includes the extension definition referenced by the manifest.
+- The package manifest references a resolvable extension definition.
 - The extension identifier in the manifest matches `<metadata.uri>:<metadata.version>` in the extension file.
 - The extension declares all vocabulary dependencies.
 - Any manifest `configuration` shape is defined by a declared extension dependency.
@@ -300,7 +298,12 @@ It includes:
 ```text
 client.go
 runtimeconditions.package.yaml
-aws-object-store-v1alpha1.yaml
 ```
 
-An example workload can import the SDK normally and call `Client.PutObject`. The Go generator discovers the package manifest from that import and emits an `aws.object_store` Condition into the generated Runtime Conditions Profile.
+The manifest references the canonical example extension at:
+
+```text
+examples/extensions/aws-object-store/aws-object-store-v1alpha1.yaml
+```
+
+An example workload can import the SDK normally and call `Client.PutObject`. The Go generator discovers the package manifest from that import, loads the referenced extension definition, and emits an `aws.object_store` Condition into the generated Runtime Conditions Profile.

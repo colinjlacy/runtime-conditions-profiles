@@ -7,7 +7,7 @@ metadata:
 
 extension:
   id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  definition: aws-object-store-v1alpha1.yaml
+  definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
 
 go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-go-v2/service/s3

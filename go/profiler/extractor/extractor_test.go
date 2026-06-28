@@ -457,6 +457,64 @@ func writeAuditLog(ctx context.Context) error {
 	}
 }
 
+func TestExtractDirWithCheckedInAWSSDKPackageManifest(t *testing.T) {
+	dir := t.TempDir()
+	sdkPath, err := filepath.Abs(filepath.Join("..", "..", "..", "examples", "sdks", "aws-sdk-go-v2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeModule(t, dir, map[string]string{
+		"github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-go-v2": sdkPath,
+	})
+
+	source := `package main
+
+import (
+	"context"
+
+	"github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-go-v2/service/s3"
+)
+
+func writeObject(ctx context.Context) error {
+	client := s3.NewFromConfig(s3.Config{})
+	bucket := "audit-log-bucket"
+	key := "events.json"
+	_, err := client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: &bucket,
+		Key: &key,
+	})
+	return err
+}
+`
+
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	profile, err := ExtractDir(dir, Options{
+		Name:            "aws-sdk-example",
+		WorkloadURI:     "github.com/example/aws-sdk-example",
+		WorkloadVersion: "v0.1.0",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(profile.Extensions, []string{"https://aws.example.com/runtimeconditions/object-store:v1alpha1"}) {
+		t.Fatalf("unexpected extensions: %#v", profile.Extensions)
+	}
+	if len(profile.Conditions) != 1 {
+		t.Fatalf("expected 1 condition, got %d", len(profile.Conditions))
+	}
+	condition := profile.Conditions[0]
+	if condition.Kind != "aws.object_store" || condition.Interface.Type != "aws.s3" || condition.Interface.BucketClass != "standard" {
+		t.Fatalf("unexpected AWS SDK condition: %#v", condition)
+	}
+	if condition.Configuration == nil || len(condition.Configuration.Env) != 4 {
+		t.Fatalf("unexpected AWS SDK configuration: %#v", condition.Configuration)
+	}
+}
+
 func TestExtractDirGoldenProfiles(t *testing.T) {
 	commonPath := extensionModulePath(t, "common-integrations")
 	envPath := extensionModulePath(t, "env-configuration")

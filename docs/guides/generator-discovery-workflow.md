@@ -150,7 +150,7 @@ Package manifests identify the extension used by generated Conditions:
 ```yaml
 extension:
   id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  definition: aws-object-store-v1alpha1.yaml
+  definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
 ```
 
 The extension definition declares its dependencies:
@@ -170,7 +170,9 @@ Generators and validators should resolve dependencies by extension identifier fr
 - Organization registry
 - Public registry
 
-SDK packages should ship the extension definition they own. They do not need to physically include every transitive dependency extension file.
+Extensions are standalone artifacts. A workload or adapter can use an extension without using the SDK that originally motivated it. SDK packages that participate in generation must reference an extension definition from their package manifest; they do not define vocabulary inside the package manifest itself.
+
+SDK packages do not need to physically include every transitive dependency extension file. Dependencies are resolved from configured catalogs, registries, caches, or local extension roots.
 
 ---
 

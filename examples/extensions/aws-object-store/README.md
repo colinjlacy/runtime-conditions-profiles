@@ -8,8 +8,8 @@ This document defines a minimal Runtime Conditions extension for AWS S3-compatib
 
 The machine-readable extension definition is [aws-object-store-v1alpha1.yaml](aws-object-store-v1alpha1.yaml).
 
-The example SDK package that embeds this extension shape is in
-[../../examples/sdks/aws-sdk-go-v2/service/s3](../../examples/sdks/aws-sdk-go-v2/service/s3).
+The example SDK package that uses this extension shape is in
+[../../sdks/aws-sdk-go-v2/service/s3](../../sdks/aws-sdk-go-v2/service/s3).
 
 This extension is treated as a third-party extension. It is not first-party Runtime Conditions vocabulary.
 
@@ -67,7 +67,8 @@ The `configuration` block names workload-facing environment variables only. It d
 
 The example SDK package includes a `runtimeconditions.package.yaml` file next to
 its S3 client code. That package manifest maps SDK method calls to this
-extension vocabulary:
+extension vocabulary. The extension remains a standalone artifact that can be
+used without the SDK:
 
 ```yaml
 apiVersion: runtimeconditions.io/v1alpha1
@@ -75,7 +76,7 @@ kind: RuntimeConditionsPackage
 
 extension:
   id: https://aws.example.com/runtimeconditions/object-store:v1alpha1
-  definition: aws-object-store-v1alpha1.yaml
+  definition: ../../../../extensions/aws-object-store/aws-object-store-v1alpha1.yaml
 
 go:
   importPath: github.com/colinjlacy/runtime-conditions-profiles/examples/sdks/aws-sdk-go-v2/service/s3
