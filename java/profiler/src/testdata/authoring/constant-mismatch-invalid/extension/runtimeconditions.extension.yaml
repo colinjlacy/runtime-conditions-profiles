@@ -1,0 +1,22 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  id: https://example.com/runtimeconditions/java/constant-mismatch/v1alpha1/runtimeconditions.extension.yaml
+
+spec:
+  kinds:
+    - name: java.fixture
+  interfaceTypes:
+    - name: java
+      targetKind: java.fixture
+  interfaceFields:
+    - name: mode
+      targetKind: java.fixture
+      targetType: java
+  fieldValues:
+    - field: interface.mode
+      targetKind: java.fixture
+      targetType: java
+      values:
+        - expected

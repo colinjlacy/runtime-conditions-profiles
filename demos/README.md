@@ -5,6 +5,7 @@ This tree contains runnable examples and downstream adapter assets.
 ## Layout
 
 - `apps/request-logger-http/` - Go workload that imports first-party declaration packages and demonstrates explicit profile declarations.
+- `apps/request-logger-http-java/` - Java workload with matching explicit declarations for the same Conditions as the Go request logger.
 - `apps/todos-api/` - simple provider API used by the request logger demo.
 - `catalog/apis/` - OpenAPI and catalog files used by the adapter demo.
 - `kratix/` - Kratix Promise and adapter assets for downstream fulfillment demos.
@@ -27,6 +28,29 @@ The request logger is its own Go module:
 ```sh
 cd demos/apps/request-logger-http
 go test ./...
+```
+
+## Generate the Java Request Logger Profile
+
+From the repository root:
+
+```sh
+cd java/profiler
+mvn -q package
+
+java -jar target/runtimeconditions-java-profiler-0.1.0-SNAPSHOT.jar generate \
+  --project ../../demos/apps/request-logger-http-java \
+  --classpath ../../extensions/common-integrations/java:../../extensions/env-configuration/java \
+  --name request-logger-http \
+  --workload-uri github.com/colinjlacy/runtime-conditions-profiles/demos/apps/request-logger-http-java \
+  --workload-version dev
+```
+
+The Java demo is a Maven project:
+
+```sh
+cd demos/apps/request-logger-http-java
+mvn -q package
 ```
 
 ## Published Demo Images

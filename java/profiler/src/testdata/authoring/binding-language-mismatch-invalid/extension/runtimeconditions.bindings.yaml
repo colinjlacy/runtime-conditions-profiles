@@ -1,0 +1,14 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: https://example.com/runtimeconditions/java/binding-language-mismatch/v1alpha1/runtimeconditions.extension.yaml
+  language: go
+
+java:
+  package: io.runtimeconditions.fixtures.languagemismatch
+  declarations:
+    - class: Fixture
+      function: declare
+      nameArg: 0
+      kind: java.fixture

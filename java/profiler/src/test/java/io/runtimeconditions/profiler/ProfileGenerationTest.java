@@ -1,5 +1,6 @@
 package io.runtimeconditions.profiler;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +72,41 @@ public final class ProfileGenerationTest {
         assertTrue(yaml.contains("name: users-api"), "YAML should contain API condition");
 
         assertTrue(new JavaProfileValidator().validate(profile, discovery).isEmpty(), "generated profile should validate");
+        assertGoldenProfile(
+                app,
+                discoveryOptions,
+                "java-declarative-app",
+                "example/java-declarative-app",
+                "test",
+                repoRoot.resolve("java/profiler/src/testdata/golden/declarative-app.golden.yaml"));
+        assertGoldenProfile(
+                repoRoot.resolve("java/profiler/src/testdata/profile-generation/wildcard-cache"),
+                new DiscoveryOptions(List.of(common), false),
+                "wildcard-cache",
+                "example/wildcard-cache",
+                "test",
+                repoRoot.resolve("java/profiler/src/testdata/golden/wildcard-cache.golden.yaml"));
+        assertGoldenProfile(
+                repoRoot.resolve("java/profiler/src/testdata/profile-generation/semantic-resolution"),
+                discoveryOptions,
+                "semantic-resolution",
+                "example/semantic-resolution",
+                "test",
+                repoRoot.resolve("java/profiler/src/testdata/golden/semantic-resolution.golden.yaml"));
+        assertGoldenProfile(
+                repoRoot.resolve("java/profiler/src/testdata/profile-generation/unused-env"),
+                discoveryOptions,
+                "unused-env",
+                "example/unused-env",
+                "test",
+                repoRoot.resolve("java/profiler/src/testdata/golden/unused-env.golden.yaml"));
+        assertGoldenProfile(
+                repoRoot.resolve("demos/apps/request-logger-http-java"),
+                discoveryOptions,
+                "request-logger-http",
+                "github.com/colinjlacy/runtime-conditions-profiles/demos/apps/request-logger-http-java",
+                "dev",
+                repoRoot.resolve("java/profiler/src/testdata/golden/request-logger-http-java.golden.yaml"));
 
         Map<String, Object> unknownKind = mutableProfile(profile);
         condition(unknownKind, 0).put("kind", "worker");
@@ -94,6 +130,21 @@ public final class ProfileGenerationTest {
                 missingDependency,
                 discovery,
                 "extensions missing dependency https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml");
+    }
+
+    private static void assertGoldenProfile(
+            Path app,
+            DiscoveryOptions options,
+            String name,
+            String workloadUri,
+            String workloadVersion,
+            Path golden) throws Exception {
+        Map<String, Object> profile = new JavaProfileExtractor().extract(
+                app,
+                new JavaProfileOptions(name, workloadUri, workloadVersion, options));
+        String actual = normalize(ProfileYamlWriter.write(profile));
+        String expected = normalize(Files.readString(golden));
+        assertEquals(expected, actual, golden.getFileName().toString());
     }
 
     private static Map<?, ?> map(Object value, String message) {
@@ -159,6 +210,10 @@ public final class ProfileGenerationTest {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> mutableProfile(Map<String, Object> profile) {
         return (Map<String, Object>) deepCopy(profile);
+    }
+
+    private static String normalize(String value) {
+        return value.replace("\r\n", "\n").trim() + "\n";
     }
 
     private static Object deepCopy(Object value) {

@@ -1,0 +1,16 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: https://example.com/runtimeconditions/java/constant-mismatch/v1alpha1/runtimeconditions.extension.yaml
+  language: java
+
+java:
+  package: io.runtimeconditions.fixtures.constant
+  constants:
+    Fixture.MODE: expected
+  declarations:
+    - class: Fixture
+      function: declare
+      nameArg: 0
+      kind: java.fixture

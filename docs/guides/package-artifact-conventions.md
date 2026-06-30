@@ -337,7 +337,7 @@ At least one of `java.declarations` or `java.options` must be present.
 
 Generators SHOULD use language-native package resolution and then check conventional manifest locations. They SHOULD NOT recursively scan dependency trees looking for arbitrary manifest files.
 
-The current Go generator supports extraction. The Java profiler supports Maven/Gradle-aware artifact discovery, Java binding validation, and profile generation from declarative `RuntimeConditionsBinding` Java calls. SDK/runtime package extraction is intentionally deferred. The Python, JavaScript, and TypeScript paths below describe the intended package-resolution convention for future language support.
+The current Go generator supports extraction. The Java profiler supports Maven/Gradle-aware artifact discovery, Java binding validation, profile generation from declarative `RuntimeConditionsBinding` Java calls, generated profile validation, and executable JAR packaging. SDK/runtime package extraction is intentionally deferred. The Python, JavaScript, and TypeScript paths below describe the intended package-resolution convention for future language support.
 
 ## 6.1 Go
 

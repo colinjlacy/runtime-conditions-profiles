@@ -1,0 +1,54 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsProfile
+metadata:
+  name: java-declarative-app
+workload:
+  uri: example/java-declarative-app
+  version: test
+extensions:
+- https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+- https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
+conditions:
+- name: users-api
+  kind: api
+  interface:
+    type: http
+    spec:
+      format: openapi
+      uri: https://example.com/openapi.yaml
+      version: '1.0'
+    operations:
+    - method: GET
+      path: /users
+      responseSchema:
+        id: string
+        active: boolean
+    - method: POST
+      path: /users
+      requestBodySchema:
+        name: string
+        count: integer
+        active: boolean
+      responseSchema:
+        id: string
+        active: boolean
+  configuration:
+    env:
+    - property: token
+      name: AUTH_TOKEN
+      sensitive: true
+      required: false
+- name: users-db
+  kind: datastore
+  interface:
+    type: relational
+    engine: postgres
+  configuration:
+    alternatives:
+    - env:
+      - property: url
+        name: DATABASE_URL
+        sensitive: true
+      - property: url
+        name: READ_DATABASE_URL
+        required: false

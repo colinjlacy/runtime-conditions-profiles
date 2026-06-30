@@ -18,34 +18,53 @@ final class MavenClasspathResolver implements ClasspathResolver {
     public List<Path> resolve(Path projectRoot, List<Path> modules) throws IOException {
         Path root = projectRoot.toAbsolutePath().normalize();
         Set<Path> entries = ClasspathEntries.set();
+        Path executable = mavenExecutable(root);
 
+        resolveProject(root, root, executable, entries);
+        addMavenOutput(entries, root);
+        for (Path module : modules) {
+            Path normalized = module.toAbsolutePath().normalize();
+            resolveProject(root, normalized, executable, entries);
+            addMavenOutput(entries, normalized);
+        }
+        return ClasspathEntries.sortedInsertionOrder(entries);
+    }
+
+    private void resolveProject(
+            Path root,
+            Path project,
+            Path executable,
+            Set<Path> entries) throws IOException {
+        if (!Files.isRegularFile(project.resolve("pom.xml"))) {
+            return;
+        }
         Path outputFile = Files.createTempFile("runtimeconditions-maven-classpath", ".txt");
         List<String> command = new ArrayList<>();
-        command.add(mavenExecutable(root).toString());
+        command.add(executable.toString());
         command.add("-q");
         command.add("-DincludeScope=runtime");
         command.add("-Dmdep.outputFile=" + outputFile);
         command.add("process-resources");
         command.add("dependency:build-classpath");
 
-        CommandResult result = commandRunner.run(command, root);
-        if (result.exitCode() != 0) {
-            throw new IOException("Maven classpath resolution failed with exit code "
-                    + result.exitCode()
-                    + ": "
-                    + commandOutput(result));
-        }
-        if (Files.isRegularFile(outputFile)) {
-            for (Path entry : ClasspathEntries.parse(Files.readString(outputFile), root)) {
-                entries.add(entry);
+        try {
+            CommandResult result = commandRunner.run(command, project);
+            if (result.exitCode() != 0) {
+                throw new IOException("Maven classpath resolution failed for "
+                        + project
+                        + " with exit code "
+                        + result.exitCode()
+                        + ": "
+                        + commandOutput(result));
             }
+            if (Files.isRegularFile(outputFile)) {
+                for (Path entry : ClasspathEntries.parse(Files.readString(outputFile), root)) {
+                    entries.add(entry);
+                }
+            }
+        } finally {
+            Files.deleteIfExists(outputFile);
         }
-        addMavenOutput(entries, root);
-        for (Path module : modules) {
-            addMavenOutput(entries, module);
-        }
-        Files.deleteIfExists(outputFile);
-        return ClasspathEntries.sortedInsertionOrder(entries);
     }
 
     private Path mavenExecutable(Path root) {

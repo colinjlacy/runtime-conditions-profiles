@@ -1,0 +1,10 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  id: https://example.com/runtimeconditions/java/conflict-app/v1alpha1/runtimeconditions.extension.yaml
+
+spec:
+  dependencies:
+    - https://example.com/runtimeconditions/java/conflict-alpha/v1alpha1/runtimeconditions.extension.yaml
+    - https://example.com/runtimeconditions/java/conflict-beta/v1alpha1/runtimeconditions.extension.yaml

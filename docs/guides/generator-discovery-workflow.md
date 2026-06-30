@@ -102,9 +102,9 @@ runtimeconditions.package.yaml
 runtimeconditions.extension.yaml
 ```
 
-The current Java profiler slice implements Maven, Gradle, and source-only project detection; Maven reactor module discovery; Gradle included-project discovery; build-tool classpath resolution when requested; Runtime Conditions artifact discovery from source resources, build output, resolved classpath entries, explicit classpath entries, JAR files, and repository-local package roots; and profile generation from declarative `RuntimeConditionsBinding` Java calls.
+The current Java profiler slice implements Maven, Gradle, and source-only project detection; Maven reactor module discovery; Gradle included-project discovery; build-tool classpath resolution when requested; Runtime Conditions artifact discovery from source resources, build output, resolved classpath entries, explicit classpath entries, JAR files, and repository-local package roots; profile generation from declarative `RuntimeConditionsBinding` Java calls; and executable JAR packaging.
 
-Java profile extraction uses Java-native parsing. The current declarative binding extractor handles ordinary imported declaration classes, enum constants, string constants, class literals such as `Todo.class`, simple schema classes, nested option calls, Maven and Gradle source sets, and multi-module source discovery. Static imports, overloaded-method disambiguation, richer generic schema modeling, and SDK/runtime package extraction are future work.
+Java profile extraction uses Java-native parsing and symbol analysis. The current declarative binding extractor handles ordinary imported declaration classes, wildcard imports, static imports, fully qualified declaration calls, enum constants, cross-file string constants, class literals such as `Todo.class`, schema classes in separate source files, nested option calls, Maven and Gradle source sets, and multi-module source discovery. Overloaded-method disambiguation beyond the manifest-declared method name, richer generic schema modeling, and SDK/runtime package extraction are future work.
 
 ---
 

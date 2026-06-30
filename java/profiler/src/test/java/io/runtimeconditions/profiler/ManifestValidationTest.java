@@ -18,6 +18,7 @@ public final class ManifestValidationTest {
             throw new IllegalArgumentException("usage: ManifestValidationTest <testdata> [repo-root]");
         }
         Path testdata = Path.of(args[0]).toAbsolutePath().normalize();
+        validatesAuthoringFixtures(testdata.resolve("authoring"));
         validatesMavenBinding(testdata.resolve("maven-app"));
         validatesGradlePackage(testdata.resolve("gradle-app"));
         validatesClasspathJar();
@@ -31,6 +32,25 @@ public final class ManifestValidationTest {
         rejectsBindingVocabularyMismatch();
         rejectsMissingJavaBindingMethod();
         rejectsJavaBindingConstantMismatch();
+    }
+
+    private static void validatesAuthoringFixtures(Path fixturesRoot) throws Exception {
+        try (var stream = Files.list(fixturesRoot)) {
+            for (Path fixture : stream.filter(Files::isDirectory).sorted().toList()) {
+                YamlDocument config = YamlDocument.parse(Files.readString(fixture.resolve("fixture.yaml")));
+                boolean valid = Boolean.parseBoolean(config.scalar("valid"));
+                String wantErrorContains = config.scalar("wantErrorContains");
+                DiscoveryResult result = discoverRoot(fixture);
+                if (valid) {
+                    assertFalse(result.hasErrors(), fixture.getFileName() + " should be valid: " + diagnostics(result));
+                } else {
+                    assertTrue(result.hasErrors(), fixture.getFileName() + " should fail");
+                    if (wantErrorContains != null && !wantErrorContains.isBlank()) {
+                        assertDiagnosticContains(result, wantErrorContains);
+                    }
+                }
+            }
+        }
     }
 
     private static void validatesMavenBinding(Path root) throws Exception {

@@ -1,0 +1,14 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: https://example.com/runtimeconditions/java/duplicate/v1alpha1/runtimeconditions.extension.yaml
+  language: java
+
+java:
+  package: io.runtimeconditions.fixtures.duplicate.first
+  declarations:
+    - class: First
+      function: declare
+      nameArg: 0
+      kind: java.duplicate

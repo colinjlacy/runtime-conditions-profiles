@@ -1,0 +1,15 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: https://example.com/runtimeconditions/java/transitive-app/v1alpha1/runtimeconditions.extension.yaml
+  language: java
+
+java:
+  package: io.runtimeconditions.fixtures.transitive.app
+  declarations:
+    - class: App
+      function: declare
+      nameArg: 0
+      kind: java.transitive
+      interfaceType: tcp

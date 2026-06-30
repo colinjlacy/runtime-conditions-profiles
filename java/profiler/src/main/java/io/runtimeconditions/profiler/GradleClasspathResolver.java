@@ -25,25 +25,29 @@ final class GradleClasspathResolver implements ClasspathResolver {
         Files.writeString(initScript, initScript());
         List<String> command = new ArrayList<>();
         command.add(gradleExecutable(root).toString());
+        command.add("--no-daemon");
         command.add("-q");
         command.add("--init-script");
         command.add(initScript.toString());
         command.add("runtimeConditionsClasspath");
 
-        CommandResult result = commandRunner.run(command, root);
-        Files.deleteIfExists(initScript);
-        if (result.exitCode() != 0) {
-            throw new IOException("Gradle classpath resolution failed with exit code "
-                    + result.exitCode()
-                    + ": "
-                    + commandOutput(result));
-        }
-        for (String line : result.stdout().split("\\R")) {
-            if (line.startsWith(CLASSPATH_PREFIX)) {
-                for (Path entry : ClasspathEntries.parse(line.substring(CLASSPATH_PREFIX.length()), root)) {
-                    entries.add(entry);
+        try {
+            CommandResult result = commandRunner.run(command, root);
+            if (result.exitCode() != 0) {
+                throw new IOException("Gradle classpath resolution failed with exit code "
+                        + result.exitCode()
+                        + ": "
+                        + commandOutput(result));
+            }
+            for (String line : result.stdout().split("\\R")) {
+                if (line.startsWith(CLASSPATH_PREFIX)) {
+                    for (Path entry : ClasspathEntries.parse(line.substring(CLASSPATH_PREFIX.length()), root)) {
+                        entries.add(entry);
+                    }
                 }
             }
+        } finally {
+            Files.deleteIfExists(initScript);
         }
         addGradleOutput(entries, root);
         for (Path module : modules) {

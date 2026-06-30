@@ -22,7 +22,7 @@ Current implementation:
   - manifest extension ID against extension definition `metadata.id`
   - duplicate extension definitions and unresolved extension dependencies across discovered artifacts
 - Generates Runtime Conditions Profiles from `RuntimeConditionsBinding` declarative Java calls.
-- Emits profile YAML from Java declarations, nested options, enum constants, class literals, and simple Java schema classes.
+- Emits profile YAML from Java declarations, nested options, enum constants, static imports, fully qualified declaration calls, cross-file string constants, class literals, and Java schema classes.
 - Validates generated profiles against the resolved extension dependency closure and vocabulary before output.
 - Validates Java extension package artifacts recursively with `validate-extension` and `validate-extensions`.
 
@@ -35,22 +35,16 @@ Not implemented yet:
 ## Compile and Run
 
 ```sh
-mvn -q package dependency:build-classpath \
-  -Dmdep.outputFile=/tmp/runtimeconditions-java-profiler.classpath
+mvn -q package
 
-CP="target/classes:$(cat /tmp/runtimeconditions-java-profiler.classpath)"
-
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ProfilerCli discover \
+java -jar target/runtimeconditions-java-profiler-0.1.0-SNAPSHOT.jar discover \
   --project src/testdata/maven-app \
   --resolve-build-classpath
 
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ProfilerCli validate-extensions \
+java -jar target/runtimeconditions-java-profiler-0.1.0-SNAPSHOT.jar validate-extensions \
   --root ../../extensions
 
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ProfilerCli generate \
+java -jar target/runtimeconditions-java-profiler-0.1.0-SNAPSHOT.jar generate \
   --project src/testdata/declarative-app \
   --classpath ../../extensions/common-integrations/java:../../extensions/env-configuration/java \
   --name java-declarative-app \
@@ -61,20 +55,5 @@ java -cp "$CP" \
 ## Test
 
 ```sh
-mvn -q test-compile dependency:build-classpath \
-  -Dmdep.outputFile=/tmp/runtimeconditions-java-profiler.classpath
-
-CP="target/classes:target/test-classes:$(cat /tmp/runtimeconditions-java-profiler.classpath)"
-
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ArtifactDiscoveryTest src/testdata
-
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ClasspathResolverTest
-
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ManifestValidationTest src/testdata ../..
-
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ProfileGenerationTest ../..
+mvn -q test
 ```

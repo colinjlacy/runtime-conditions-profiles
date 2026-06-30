@@ -1,5 +1,6 @@
 package io.runtimeconditions.profiler;
 
+import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
@@ -13,18 +14,30 @@ import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.JavacTask;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
+import com.sun.source.util.Trees;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -48,9 +61,13 @@ final class JavaProfileExtractor {
             throw new IOException("no Java source files found under " + discovery.projectRoot());
         }
 
-        ExtractionScanner scanner = new ExtractionScanner(bindings, options, discovery);
-        for (CompilationUnitTree unit : parse(sourceFiles, discovery.classpathEntries())) {
-            scanner.scan(unit, null);
+        ParsedJavaProgram program = parse(sourceFiles, discovery.classpathEntries());
+        ExtractionScanner scanner = new ExtractionScanner(bindings, options, discovery, program.semantic());
+        for (CompilationUnitTree unit : program.units()) {
+            scanner.collect(unit);
+        }
+        for (CompilationUnitTree unit : program.units()) {
+            scanner.extract(unit);
         }
         Map<String, Object> profile = scanner.profile();
         List<RuntimeConditionsDiagnostic> profileDiagnostics = new JavaProfileValidator().validate(profile, discovery);
@@ -71,7 +88,7 @@ final class JavaProfileExtractor {
         return List.copyOf(bindings);
     }
 
-    private Iterable<? extends CompilationUnitTree> parse(List<Path> sourceFiles, List<Path> classpathEntries) throws IOException {
+    private ParsedJavaProgram parse(List<Path> sourceFiles, List<Path> classpathEntries) throws IOException {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) {
             throw new IOException("JDK compiler is required; run with a JDK rather than a JRE");
@@ -84,10 +101,33 @@ final class JavaProfileExtractor {
             if (!classpathEntries.isEmpty()) {
                 compilerOptions.add("-classpath");
                 compilerOptions.add(joinClasspath(classpathEntries));
+                compilerOptions.add("-sourcepath");
+                compilerOptions.add(joinClasspath(sourcePathEntries(classpathEntries)));
             }
             JavacTask task = (JavacTask) compiler.getTask(null, fileManager, diagnostics, compilerOptions, null, units);
-            return task.parse();
+            List<CompilationUnitTree> parsed = new ArrayList<>();
+            for (CompilationUnitTree unit : task.parse()) {
+                parsed.add(unit);
+            }
+            task.analyze();
+            return new ParsedJavaProgram(List.copyOf(parsed), SemanticModel.index(task, parsed));
         }
+    }
+
+    private List<Path> sourcePathEntries(List<Path> classpathEntries) {
+        List<Path> entries = new ArrayList<>();
+        for (Path entry : classpathEntries) {
+            if (!Files.isDirectory(entry)) {
+                continue;
+            }
+            Path sourceRoot = entry.resolve("src/main/java");
+            if (Files.isDirectory(sourceRoot)) {
+                entries.add(sourceRoot);
+            } else {
+                entries.add(entry);
+            }
+        }
+        return entries;
     }
 
     private List<Path> javaSourceFiles(Path root, List<Path> modules) throws IOException {
@@ -145,10 +185,14 @@ final class JavaProfileExtractor {
         return out.toString();
     }
 
+    private record ParsedJavaProgram(List<CompilationUnitTree> units, SemanticModel semantic) {
+    }
+
     private static final class ExtractionScanner extends TreePathScanner<Void, Void> {
         private final List<JavaBindingArtifact> bindings;
         private final JavaProfileOptions options;
         private final DiscoveryResult discovery;
+        private final SemanticModel semantic;
         private final Map<String, JavaBindingArtifact> bindingByClass = new LinkedHashMap<>();
         private final Set<String> usedExtensions = new LinkedHashSet<>();
         private final List<Map<String, Object>> conditions = new ArrayList<>();
@@ -156,10 +200,15 @@ final class JavaProfileExtractor {
         private final Map<String, Map<String, Object>> schemas = new LinkedHashMap<>();
         private Map<String, JavaBindingArtifact> imports = Map.of();
 
-        private ExtractionScanner(List<JavaBindingArtifact> bindings, JavaProfileOptions options, DiscoveryResult discovery) {
+        private ExtractionScanner(
+                List<JavaBindingArtifact> bindings,
+                JavaProfileOptions options,
+                DiscoveryResult discovery,
+                SemanticModel semantic) {
             this.bindings = bindings;
             this.options = options;
             this.discovery = discovery;
+            this.semantic = semantic;
             for (JavaBindingArtifact binding : bindings) {
                 for (JavaSymbolMapping mapping : binding.allMappings()) {
                     if (mapping.className() == null || binding.manifest().packageName() == null) {
@@ -171,11 +220,18 @@ final class JavaProfileExtractor {
             }
         }
 
+        private void collect(CompilationUnitTree unit) {
+            collectSchemas(unit);
+            collectStringConstants(unit);
+        }
+
+        private void extract(CompilationUnitTree unit) {
+            scan(unit, null);
+        }
+
         @Override
         public Void visitCompilationUnit(CompilationUnitTree unit, Void unused) {
             imports = importsFor(unit);
-            collectSchemas(unit);
-            collectStringConstants(unit);
             return super.visitCompilationUnit(unit, unused);
         }
 
@@ -493,11 +549,24 @@ final class JavaProfileExtractor {
         }
 
         private CallIdentity callIdentity(MethodInvocationTree call) {
-            ExpressionTree select = call.getMethodSelect();
-            if (!(select instanceof MemberSelectTree member)) {
-                return null;
+            Element element = semantic.element(call.getMethodSelect());
+            if (!(element instanceof ExecutableElement)) {
+                element = semantic.element(call);
             }
-            return new CallIdentity(member.getExpression().toString(), member.getIdentifier().toString());
+            if (element instanceof ExecutableElement executable) {
+                TypeElement owner = enclosingType(executable);
+                if (owner != null) {
+                    return new CallIdentity(owner.getQualifiedName().toString(), executable.getSimpleName().toString());
+                }
+            }
+            ExpressionTree select = call.getMethodSelect();
+            if (select instanceof MemberSelectTree member) {
+                return new CallIdentity(member.getExpression().toString(), member.getIdentifier().toString());
+            }
+            if (select instanceof IdentifierTree identifier) {
+                return new CallIdentity("", identifier.getName().toString());
+            }
+            return null;
         }
 
         private MethodInvocationTree asCall(ExpressionTree expr) {
@@ -516,6 +585,10 @@ final class JavaProfileExtractor {
         }
 
         private String stringValue(ExpressionTree expr) {
+            String semanticValue = semantic.constantString(expr);
+            if (semanticValue != null) {
+                return semanticValue;
+            }
             if (expr instanceof LiteralTree literal && literal.getValue() instanceof String value) {
                 return value;
             }
@@ -534,12 +607,27 @@ final class JavaProfileExtractor {
             if (value != null) {
                 return value;
             }
+            String semanticConstant = semantic.bindingConstantName(expr);
+            if (semanticConstant != null) {
+                value = binding.manifest().constants().get(semanticConstant);
+                if (value != null) {
+                    return value;
+                }
+            }
             throw new IllegalArgumentException("value must be a string literal, string constant, or binding constant");
         }
 
         private Object schemaForClassLiteral(ExpressionTree expr) {
             if (!(expr instanceof MemberSelectTree member) || !"class".equals(member.getIdentifier().toString())) {
                 throw new IllegalArgumentException("schema option requires a class literal");
+            }
+            TypeMirror mirror = semantic.type(member.getExpression());
+            if (mirror != null && mirror.getKind() != TypeKind.ERROR) {
+                Object schema = schemaForTypeMirror(mirror, new LinkedHashSet<>());
+                if (schema instanceof Map<?, ?> map && map.isEmpty()) {
+                    throw new IllegalArgumentException("unsupported schema class " + member.getExpression());
+                }
+                return schema;
             }
             String className = simpleName(member.getExpression().toString());
             Map<String, Object> schema = schemas.get(className);
@@ -553,7 +641,13 @@ final class JavaProfileExtractor {
             new TreePathScanner<Void, Void>() {
                 @Override
                 public Void visitVariable(VariableTree node, Void unused) {
-                    if (node.getInitializer() instanceof LiteralTree literal && literal.getValue() instanceof String value) {
+                    String semanticValue = semantic.constantString(node);
+                    if (semanticValue != null) {
+                        ModifiersTree modifiers = node.getModifiers();
+                        if (modifiers.getFlags().contains(Modifier.STATIC) || modifiers.getFlags().contains(Modifier.FINAL)) {
+                            stringConstants.put(node.getName().toString(), semanticValue);
+                        }
+                    } else if (node.getInitializer() instanceof LiteralTree literal && literal.getValue() instanceof String value) {
                         ModifiersTree modifiers = node.getModifiers();
                         if (modifiers.getFlags().contains(Modifier.STATIC) || modifiers.getFlags().contains(Modifier.FINAL)) {
                             stringConstants.put(node.getName().toString(), value);
@@ -568,18 +662,29 @@ final class JavaProfileExtractor {
             new TreePathScanner<Void, Void>() {
                 @Override
                 public Void visitClass(ClassTree node, Void unused) {
-                    Map<String, Object> schema = new LinkedHashMap<>();
-                    for (Tree member : node.getMembers()) {
-                        if (!(member instanceof VariableTree field)) {
-                            continue;
+                    Element element = semantic.element(node);
+                    if (element instanceof TypeElement typeElement) {
+                        Object semanticSchema = schemaForTypeElement(typeElement, new LinkedHashSet<>());
+                        if (semanticSchema instanceof Map<?, ?> map && !map.isEmpty()) {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> schema = (Map<String, Object>) semanticSchema;
+                            schemas.put(typeElement.getSimpleName().toString(), schema);
+                            schemas.put(typeElement.getQualifiedName().toString(), schema);
                         }
-                        if (field.getModifiers().getFlags().contains(Modifier.STATIC)) {
-                            continue;
+                    } else {
+                        Map<String, Object> schema = new LinkedHashMap<>();
+                        for (Tree member : node.getMembers()) {
+                            if (!(member instanceof VariableTree field)) {
+                                continue;
+                            }
+                            if (field.getModifiers().getFlags().contains(Modifier.STATIC)) {
+                                continue;
+                            }
+                            schema.put(field.getName().toString(), schemaForType(field.getType()));
                         }
-                        schema.put(field.getName().toString(), schemaForType(field.getType()));
-                    }
-                    if (!schema.isEmpty()) {
-                        schemas.put(node.getSimpleName().toString(), schema);
+                        if (!schema.isEmpty()) {
+                            schemas.put(node.getSimpleName().toString(), schema);
+                        }
                     }
                     return super.visitClass(node, unused);
                 }
@@ -587,6 +692,10 @@ final class JavaProfileExtractor {
         }
 
         private Object schemaForType(Tree type) {
+            TypeMirror mirror = semantic.type(type);
+            if (mirror != null && mirror.getKind() != TypeKind.ERROR) {
+                return schemaForTypeMirror(mirror, new LinkedHashSet<>());
+            }
             String value = type.toString();
             if (type instanceof ParameterizedTypeTree parameterized) {
                 String raw = parameterized.getType().toString();
@@ -612,6 +721,61 @@ final class JavaProfileExtractor {
                 case "float", "double", "Float", "Double" -> "number";
                 default -> schemas.getOrDefault(simpleName(name), Map.of());
             };
+        }
+
+        private Object schemaForTypeMirror(TypeMirror type, Set<String> seen) {
+            if (type == null) {
+                return Map.of();
+            }
+            return switch (type.getKind()) {
+                case BOOLEAN -> "boolean";
+                case BYTE, SHORT, INT, LONG -> "integer";
+                case FLOAT, DOUBLE -> "number";
+                case ARRAY -> List.of(schemaForTypeMirror(((ArrayType) type).getComponentType(), seen));
+                case DECLARED -> schemaForDeclaredType((DeclaredType) type, seen);
+                default -> Map.of();
+            };
+        }
+
+        private Object schemaForDeclaredType(DeclaredType type, Set<String> seen) {
+            if (!(type.asElement() instanceof TypeElement element)) {
+                return Map.of();
+            }
+            String qualifiedName = element.getQualifiedName().toString();
+            return switch (qualifiedName) {
+                case "java.lang.String" -> "string";
+                case "java.lang.Boolean" -> "boolean";
+                case "java.lang.Byte", "java.lang.Short", "java.lang.Integer", "java.lang.Long" -> "integer";
+                case "java.lang.Float", "java.lang.Double" -> "number";
+                case "java.util.List", "java.util.Collection", "java.util.Set", "java.lang.Iterable" ->
+                        List.of(type.getTypeArguments().isEmpty()
+                                ? Map.of()
+                                : schemaForTypeMirror(type.getTypeArguments().get(0), seen));
+                case "java.util.Map" -> Map.of(
+                        "additionalProperties",
+                        type.getTypeArguments().size() < 2
+                                ? Map.of()
+                                : schemaForTypeMirror(type.getTypeArguments().get(1), seen));
+                default -> schemaForTypeElement(element, seen);
+            };
+        }
+
+        private Object schemaForTypeElement(TypeElement element, Set<String> seen) {
+            String qualifiedName = element.getQualifiedName().toString();
+            if (!seen.add(qualifiedName)) {
+                return Map.of();
+            }
+            Map<String, Object> schema = new LinkedHashMap<>();
+            for (Element enclosed : element.getEnclosedElements()) {
+                if (enclosed.getModifiers().contains(Modifier.STATIC)) {
+                    continue;
+                }
+                if (enclosed.getKind() == ElementKind.FIELD || enclosed.getKind() == ElementKind.RECORD_COMPONENT) {
+                    schema.put(enclosed.getSimpleName().toString(), schemaForTypeMirror(enclosed.asType(), seen));
+                }
+            }
+            seen.remove(qualifiedName);
+            return schema;
         }
 
         private Map<String, Object> interfaceMap(Map<String, Object> condition) {
@@ -735,6 +899,145 @@ final class JavaProfileExtractor {
             }
             String mappingClass = mapping.className();
             return className.equals(mappingClass) || className.endsWith("." + mappingClass);
+        }
+    }
+
+    private static TypeElement enclosingType(Element element) {
+        Element current = element;
+        while (current != null) {
+            if (current instanceof TypeElement typeElement) {
+                return typeElement;
+            }
+            current = current.getEnclosingElement();
+        }
+        return null;
+    }
+
+    private static final class SemanticModel extends TreePathScanner<Void, Void> {
+        private final Trees trees;
+        private final Map<Tree, Element> elements = new IdentityHashMap<>();
+        private final Map<Tree, TypeMirror> types = new IdentityHashMap<>();
+
+        private SemanticModel(Trees trees) {
+            this.trees = trees;
+        }
+
+        private static SemanticModel index(JavacTask task, List<CompilationUnitTree> units) {
+            SemanticModel model = new SemanticModel(Trees.instance(task));
+            for (CompilationUnitTree unit : units) {
+                model.scan(unit, null);
+            }
+            return model;
+        }
+
+        private Element element(Tree tree) {
+            return elements.get(tree);
+        }
+
+        private TypeMirror type(Tree tree) {
+            return types.get(tree);
+        }
+
+        private String constantString(Tree tree) {
+            Element element = element(tree);
+            if (element instanceof VariableElement variable) {
+                Object value = variable.getConstantValue();
+                if (value instanceof String stringValue) {
+                    return stringValue;
+                }
+            }
+            return null;
+        }
+
+        private String bindingConstantName(Tree tree) {
+            Element element = element(tree);
+            if (!(element instanceof VariableElement variable)) {
+                return null;
+            }
+            List<String> parts = new ArrayList<>();
+            parts.add(variable.getSimpleName().toString());
+            Element owner = variable.getEnclosingElement();
+            while (owner instanceof TypeElement typeElement) {
+                parts.add(0, typeElement.getSimpleName().toString());
+                owner = typeElement.getEnclosingElement();
+            }
+            return String.join(".", parts);
+        }
+
+        @Override
+        public Void visitClass(ClassTree node, Void unused) {
+            recordCurrent(node);
+            return super.visitClass(node, unused);
+        }
+
+        @Override
+        public Void visitVariable(VariableTree node, Void unused) {
+            recordCurrent(node);
+            recordChild(node.getType());
+            recordChild(node.getInitializer());
+            return super.visitVariable(node, unused);
+        }
+
+        @Override
+        public Void visitIdentifier(IdentifierTree node, Void unused) {
+            recordCurrent(node);
+            return super.visitIdentifier(node, unused);
+        }
+
+        @Override
+        public Void visitMemberSelect(MemberSelectTree node, Void unused) {
+            recordCurrent(node);
+            return super.visitMemberSelect(node, unused);
+        }
+
+        @Override
+        public Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
+            recordCurrent(node);
+            recordChild(node.getMethodSelect());
+            return super.visitMethodInvocation(node, unused);
+        }
+
+        @Override
+        public Void visitParameterizedType(ParameterizedTypeTree node, Void unused) {
+            recordCurrent(node);
+            return super.visitParameterizedType(node, unused);
+        }
+
+        @Override
+        public Void visitArrayType(ArrayTypeTree node, Void unused) {
+            recordCurrent(node);
+            return super.visitArrayType(node, unused);
+        }
+
+        private void recordCurrent(Tree tree) {
+            TreePath path = getCurrentPath();
+            if (path != null) {
+                record(path, tree);
+            }
+        }
+
+        private void recordChild(Tree tree) {
+            if (tree == null || getCurrentPath() == null) {
+                return;
+            }
+            record(new TreePath(getCurrentPath(), tree), tree);
+        }
+
+        private void record(TreePath path, Tree tree) {
+            try {
+                Element element = trees.getElement(path);
+                if (element != null) {
+                    elements.put(tree, element);
+                }
+            } catch (RuntimeException ignored) {
+            }
+            try {
+                TypeMirror type = trees.getTypeMirror(path);
+                if (type != null) {
+                    types.put(tree, type);
+                }
+            } catch (RuntimeException ignored) {
+            }
         }
     }
 

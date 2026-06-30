@@ -1,0 +1,39 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsProfile
+metadata:
+  name: semantic-resolution
+workload:
+  uri: example/semantic-resolution
+  version: test
+extensions:
+- https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+- https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
+conditions:
+- name: semantic-api
+  kind: api
+  interface:
+    type: http
+    spec:
+      format: openapi
+      uri: https://example.com/semantic-openapi.yaml
+      version: '2.0'
+    operations:
+    - method: POST
+      path: /semantic-users
+      requestBodySchema:
+        name: string
+        count: integer
+        active: boolean
+      responseSchema:
+        id: string
+        active: boolean
+  configuration:
+    env:
+    - property: token
+      name: SEMANTIC_AUTH_TOKEN
+      required: false
+- name: semantic-cache
+  kind: cache
+  interface:
+    type: key_value
+    engine: memcached

@@ -1,0 +1,22 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  id: https://example.com/runtimeconditions/java/transitive-config/v1alpha1/runtimeconditions.extension.yaml
+
+spec:
+  dependencies:
+    - https://example.com/runtimeconditions/java/transitive-base/v1alpha1/runtimeconditions.extension.yaml
+  conditionFields:
+    - name: configuration
+      appliesToKinds:
+        - java.transitive
+      appliesToInterfaceTypes:
+        - tcp
+  fieldValues:
+    - field: configuration.env[].property
+      targetKind: java.transitive
+      targetType: tcp
+      values:
+        - endpoint
+        - token

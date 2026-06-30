@@ -229,13 +229,9 @@ META-INF/runtimeconditions/runtimeconditions.extension.yaml</code></pre>
           <div class="example">
             <div class="example-title">Profile generation command</div>
             <pre><code>cd java/profiler
-mvn -q package dependency:build-classpath \
-  -Dmdep.outputFile=/tmp/runtimeconditions-java-profiler.classpath
+mvn -q package
 
-CP="target/classes:$(cat /tmp/runtimeconditions-java-profiler.classpath)"
-
-java -cp "$CP" \
-  io.runtimeconditions.profiler.ProfilerCli generate \
+java -jar target/runtimeconditions-java-profiler-0.1.0-SNAPSHOT.jar generate \
   --project src/testdata/declarative-app \
   --classpath ../../extensions/common-integrations/java:../../extensions/env-configuration/java \
   --name java-declarative-app \

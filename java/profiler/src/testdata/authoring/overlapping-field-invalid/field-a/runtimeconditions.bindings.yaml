@@ -1,0 +1,20 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: https://example.com/runtimeconditions/java/overlapping-field-a/v1alpha1/runtimeconditions.extension.yaml
+  language: java
+
+java:
+  package: io.runtimeconditions.fixtures.overlap.a
+  options:
+    - class: FieldA
+      function: env
+      target: configuration.env[]
+      appliesToKinds:
+        - java.field
+      appliesToInterfaceTypes:
+        - http
+      stringArgs:
+        property: 0
+        name: 1

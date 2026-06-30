@@ -1,0 +1,22 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: https://example.com/runtimeconditions/java/bad-string-arg-index/v1alpha1/runtimeconditions.extension.yaml
+  language: java
+
+java:
+  package: io.runtimeconditions.fixtures.badstringarg
+  declarations:
+    - class: Fixture
+      function: declare
+      nameArg: 0
+      kind: java.fixture
+      interfaceType: http
+      options:
+        - class: Fixture
+          function: endpoint
+          target: interface.operations[]
+          method: GET
+          stringArgs:
+            path: 2

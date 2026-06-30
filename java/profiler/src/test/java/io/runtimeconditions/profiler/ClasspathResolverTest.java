@@ -20,6 +20,8 @@ public final class ClasspathResolverTest {
         Path module = root.resolve("service");
         Files.createDirectories(root.resolve("target/classes"));
         Files.createDirectories(module.resolve("target/classes"));
+        Files.writeString(root.resolve("pom.xml"), "<project />");
+        Files.writeString(module.resolve("pom.xml"), "<project />");
         Files.createFile(root.resolve("mvnw"));
         Path dependency = Files.createTempFile("runtimeconditions-maven-dependency", ".jar");
 
@@ -35,6 +37,7 @@ public final class ClasspathResolverTest {
 
         List<Path> entries = new MavenClasspathResolver(runner).resolve(root, List.of(module));
         assertTrue(runner.commands.get(0).get(0).endsWith("mvnw"), "Maven resolver should prefer mvnw");
+        assertEquals(2, runner.commands.size(), "Maven resolver should inspect root and module POMs");
         assertContains(entries, root.resolve("target/classes"), "Maven root output");
         assertContains(entries, module.resolve("target/classes"), "Maven module output");
         assertContains(entries, dependency, "Maven dependency JAR");
@@ -54,6 +57,7 @@ public final class ClasspathResolverTest {
 
         List<Path> entries = new GradleClasspathResolver(runner).resolve(root, List.of(module));
         assertTrue(runner.commands.get(0).get(0).endsWith("gradlew"), "Gradle resolver should prefer gradlew");
+        assertTrue(runner.commands.get(0).contains("--no-daemon"), "Gradle resolver should avoid persistent daemons");
         assertTrue(runner.commands.get(0).contains("runtimeConditionsClasspath"), "Gradle resolver should run injected classpath task");
         assertContains(entries, module.resolve("build/resources/main"), "Gradle module resources");
         assertContains(entries, dependency, "Gradle dependency JAR");
@@ -69,6 +73,12 @@ public final class ClasspathResolverTest {
     private static void assertTrue(boolean value, String message) {
         if (!value) {
             throw new AssertionError(message);
+        }
+    }
+
+    private static void assertEquals(Object expected, Object actual, String message) {
+        if (!expected.equals(actual)) {
+            throw new AssertionError(message + ": expected " + expected + ", got " + actual);
         }
     }
 
@@ -91,4 +101,3 @@ public final class ClasspathResolverTest {
         }
     }
 }
-

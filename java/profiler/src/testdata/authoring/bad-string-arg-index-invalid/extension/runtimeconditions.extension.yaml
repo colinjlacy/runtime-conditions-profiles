@@ -1,0 +1,22 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsExtensionDefinition
+
+metadata:
+  id: https://example.com/runtimeconditions/java/bad-string-arg-index/v1alpha1/runtimeconditions.extension.yaml
+
+spec:
+  kinds:
+    - name: java.fixture
+  interfaceTypes:
+    - name: http
+      targetKind: java.fixture
+  interfaceFields:
+    - name: operations
+      targetKind: java.fixture
+      targetType: http
+  fieldValues:
+    - field: interface.operations[].method
+      targetKind: java.fixture
+      targetType: http
+      values:
+        - GET
