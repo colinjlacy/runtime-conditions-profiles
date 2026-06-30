@@ -1,5 +1,6 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.classpath;
 
+import io.runtimeconditions.profiler.command.CommandRunner;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -7,10 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-final class MavenClasspathResolver implements ClasspathResolver {
+public final class MavenClasspathResolver implements ClasspathResolver {
     private final CommandRunner commandRunner;
 
-    MavenClasspathResolver(CommandRunner commandRunner) {
+    public MavenClasspathResolver(CommandRunner commandRunner) {
         this.commandRunner = commandRunner;
     }
 
@@ -27,7 +28,7 @@ final class MavenClasspathResolver implements ClasspathResolver {
             resolveProject(root, normalized, executable, entries);
             addMavenOutput(entries, normalized);
         }
-        return ClasspathEntries.sortedInsertionOrder(entries);
+        return new ArrayList<>(entries);
     }
 
     private void resolveProject(
@@ -48,14 +49,14 @@ final class MavenClasspathResolver implements ClasspathResolver {
         command.add("dependency:build-classpath");
 
         try {
-            CommandResult result = commandRunner.run(command, project);
+            CommandRunner.Result result = commandRunner.run(command, project);
             if (result.exitCode() != 0) {
                 throw new IOException("Maven classpath resolution failed for "
                         + project
                         + " with exit code "
                         + result.exitCode()
                         + ": "
-                        + commandOutput(result));
+                        + ClasspathEntries.commandOutput(result));
             }
             if (Files.isRegularFile(outputFile)) {
                 for (Path entry : ClasspathEntries.parse(Files.readString(outputFile), root)) {
@@ -68,7 +69,7 @@ final class MavenClasspathResolver implements ClasspathResolver {
     }
 
     private Path mavenExecutable(Path root) {
-        Path wrapper = root.resolve(isWindows() ? "mvnw.cmd" : "mvnw");
+        Path wrapper = root.resolve(ClasspathEntries.isWindows() ? "mvnw.cmd" : "mvnw");
         if (Files.isRegularFile(wrapper)) {
             return wrapper;
         }
@@ -78,14 +79,5 @@ final class MavenClasspathResolver implements ClasspathResolver {
     private void addMavenOutput(Set<Path> entries, Path project) {
         ClasspathEntries.addIfExists(entries, project.resolve("target/classes"));
         ClasspathEntries.addIfExists(entries, project.resolve("target/test-classes"));
-    }
-
-    private boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase().contains("win");
-    }
-
-    private String commandOutput(CommandResult result) {
-        String output = (result.stderr() + "\n" + result.stdout()).trim();
-        return output.isEmpty() ? "<no output>" : output;
     }
 }

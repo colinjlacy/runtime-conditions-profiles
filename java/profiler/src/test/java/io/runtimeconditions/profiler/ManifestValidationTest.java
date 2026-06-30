@@ -1,5 +1,15 @@
 package io.runtimeconditions.profiler;
 
+import io.runtimeconditions.profiler.extension.ArtifactValidator;
+import io.runtimeconditions.profiler.extension.RuntimeConditionsDiagnostic;
+import io.runtimeconditions.profiler.extension.ValidatedRuntimeConditionsArtifact;
+import io.runtimeconditions.profiler.manifest.SymbolMapping;
+import io.runtimeconditions.profiler.manifest.YamlDocument;
+import io.runtimeconditions.profiler.project.ArtifactDiscovery;
+import io.runtimeconditions.profiler.project.BuildTool;
+import io.runtimeconditions.profiler.project.DiscoveryResult;
+import io.runtimeconditions.profiler.project.ProjectDiscovery;
+import io.runtimeconditions.profiler.project.RuntimeConditionsArtifact;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -54,7 +64,7 @@ public final class ManifestValidationTest {
     }
 
     private static void validatesMavenBinding(Path root) throws Exception {
-        DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
+        DiscoveryResult result = new ProjectDiscovery().discover(root, List.of());
         assertFalse(result.hasErrors(), "Maven binding fixture should be valid: " + diagnostics(result));
         ValidatedRuntimeConditionsArtifact artifact = result.validatedArtifacts().get(0);
         assertEquals(
@@ -65,7 +75,7 @@ public final class ManifestValidationTest {
     }
 
     private static void validatesGradlePackage(Path root) throws Exception {
-        DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
+        DiscoveryResult result = new ProjectDiscovery().discover(root, List.of());
         assertFalse(result.hasErrors(), "Gradle package fixture should be valid: " + diagnostics(result));
         ValidatedRuntimeConditionsArtifact artifact = result.validatedArtifacts().get(0);
         assertEquals(
@@ -139,7 +149,7 @@ public final class ManifestValidationTest {
         assertEquals("io.runtimeconditions.extensions.commonintegrations", common.javaManifest().packageName(), "common package");
         assertEquals(10, common.javaManifest().constants().size(), "common constants");
         assertEquals(3, common.javaManifest().declarations().size(), "common declarations");
-        JavaSymbolMapping api = common.javaManifest().declarations().get(0);
+        SymbolMapping api = common.javaManifest().declarations().get(0);
         assertEquals(9, api.options().size(), "api declaration options");
         assertEquals(2, api.options().get(1).options().size(), "anchored schema options should resolve for GET");
         assertEquals(2, api.options().get(2).options().size(), "anchored schema options should resolve for HEAD");
@@ -167,7 +177,7 @@ public final class ManifestValidationTest {
                   package: io.runtimeconditions.fixtures.missing
                 """);
 
-        DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
+        DiscoveryResult result = new ProjectDiscovery().discover(root, List.of());
         assertTrue(result.hasErrors(), "missing extension definition should fail");
         assertDiagnosticContains(result, "runtimeconditions.extension.yaml is required next to the manifest");
     }
@@ -195,7 +205,7 @@ public final class ManifestValidationTest {
                   id: https://example.com/runtimeconditions/definition/v1alpha1/runtimeconditions.extension.yaml
                 """);
 
-        DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
+        DiscoveryResult result = new ProjectDiscovery().discover(root, List.of());
         assertTrue(result.hasErrors(), "extension id mismatch should fail");
         assertDiagnosticContains(result, "does not match extension definition");
     }
@@ -227,7 +237,7 @@ public final class ManifestValidationTest {
                     - https://example.com/runtimeconditions/missing-dependency/v1alpha1/runtimeconditions.extension.yaml
                 """);
 
-        DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
+        DiscoveryResult result = new ProjectDiscovery().discover(root, List.of());
         assertTrue(result.hasErrors(), "unresolved dependency should fail");
         assertDiagnosticContains(result, "cannot be resolved from discovered Runtime Conditions artifacts");
     }

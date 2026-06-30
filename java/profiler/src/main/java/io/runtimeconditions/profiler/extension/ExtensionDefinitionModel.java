@@ -1,10 +1,11 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.extension;
 
+import io.runtimeconditions.profiler.manifest.YamlDocument;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-final class ExtensionDefinitionModel {
+public final class ExtensionDefinitionModel {
     private final String id;
     private final String source;
     private final List<String> dependencies;
@@ -33,7 +34,7 @@ final class ExtensionDefinitionModel {
         this.fieldValues = List.copyOf(fieldValues);
     }
 
-    static ExtensionDefinitionModel parse(
+    public static ExtensionDefinitionModel parse(
             YamlDocument document,
             String source,
             List<RuntimeConditionsDiagnostic> diagnostics) {
@@ -48,35 +49,35 @@ final class ExtensionDefinitionModel {
                 parseFieldValues(document.value("spec", "fieldValues"), source, diagnostics));
     }
 
-    String id() {
+    public String id() {
         return id;
     }
 
-    String source() {
+    public String source() {
         return source;
     }
 
-    List<String> dependencies() {
+    public List<String> dependencies() {
         return dependencies;
     }
 
-    List<ExtensionKind> kinds() {
+    public List<ExtensionKind> kinds() {
         return kinds;
     }
 
-    List<ExtensionInterfaceType> interfaceTypes() {
+    public List<ExtensionInterfaceType> interfaceTypes() {
         return interfaceTypes;
     }
 
-    List<ExtensionConditionField> conditionFields() {
+    public List<ExtensionConditionField> conditionFields() {
         return conditionFields;
     }
 
-    List<ExtensionInterfaceField> interfaceFields() {
+    public List<ExtensionInterfaceField> interfaceFields() {
         return interfaceFields;
     }
 
-    List<ExtensionFieldValue> fieldValues() {
+    public List<ExtensionFieldValue> fieldValues() {
         return fieldValues;
     }
 

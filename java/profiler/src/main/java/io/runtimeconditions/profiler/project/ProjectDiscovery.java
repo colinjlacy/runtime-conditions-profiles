@@ -1,5 +1,8 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.project;
 
+import io.runtimeconditions.profiler.classpath.BuildToolClasspathResolver;
+import io.runtimeconditions.profiler.extension.ArtifactValidator;
+import io.runtimeconditions.profiler.extension.ValidatedRuntimeConditionsArtifact;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -16,15 +19,15 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-final class JavaProjectDiscovery {
+public final class ProjectDiscovery {
     private static final Pattern GRADLE_INCLUDE = Pattern.compile("include\\s*(?:\\(|\\s)([^\\n)]*)");
     private static final Pattern GRADLE_PROJECT = Pattern.compile("['\"]:?(.*?)['\"]");
 
-    DiscoveryResult discover(Path projectRoot, List<Path> classpathEntries) throws IOException {
+    public DiscoveryResult discover(Path projectRoot, List<Path> classpathEntries) throws IOException {
         return discover(projectRoot, new DiscoveryOptions(classpathEntries, false));
     }
 
-    DiscoveryResult discover(Path projectRoot, DiscoveryOptions options) throws IOException {
+    public DiscoveryResult discover(Path projectRoot, DiscoveryOptions options) throws IOException {
         Path root = projectRoot.toAbsolutePath().normalize();
         BuildTool buildTool = detectBuildTool(root);
         List<Path> modules = discoverModules(root, buildTool);

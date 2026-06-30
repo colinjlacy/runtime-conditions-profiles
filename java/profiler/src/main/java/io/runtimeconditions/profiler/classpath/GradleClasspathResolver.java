@@ -1,5 +1,6 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.classpath;
 
+import io.runtimeconditions.profiler.command.CommandRunner;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -7,12 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-final class GradleClasspathResolver implements ClasspathResolver {
+public final class GradleClasspathResolver implements ClasspathResolver {
     private static final String CLASSPATH_PREFIX = "RCP_CLASSPATH=";
 
     private final CommandRunner commandRunner;
 
-    GradleClasspathResolver(CommandRunner commandRunner) {
+    public GradleClasspathResolver(CommandRunner commandRunner) {
         this.commandRunner = commandRunner;
     }
 
@@ -32,12 +33,12 @@ final class GradleClasspathResolver implements ClasspathResolver {
         command.add("runtimeConditionsClasspath");
 
         try {
-            CommandResult result = commandRunner.run(command, root);
+            CommandRunner.Result result = commandRunner.run(command, root);
             if (result.exitCode() != 0) {
                 throw new IOException("Gradle classpath resolution failed with exit code "
                         + result.exitCode()
                         + ": "
-                        + commandOutput(result));
+                        + ClasspathEntries.commandOutput(result));
             }
             for (String line : result.stdout().split("\\R")) {
                 if (line.startsWith(CLASSPATH_PREFIX)) {
@@ -53,11 +54,11 @@ final class GradleClasspathResolver implements ClasspathResolver {
         for (Path module : modules) {
             addGradleOutput(entries, module);
         }
-        return ClasspathEntries.sortedInsertionOrder(entries);
+        return new ArrayList<>(entries);
     }
 
     private Path gradleExecutable(Path root) {
-        Path wrapper = root.resolve(isWindows() ? "gradlew.bat" : "gradlew");
+        Path wrapper = root.resolve(ClasspathEntries.isWindows() ? "gradlew.bat" : "gradlew");
         if (Files.isRegularFile(wrapper)) {
             return wrapper;
         }
@@ -100,14 +101,5 @@ final class GradleClasspathResolver implements ClasspathResolver {
                   }
                 }
                 """;
-    }
-
-    private boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase().contains("win");
-    }
-
-    private String commandOutput(CommandResult result) {
-        String output = (result.stderr() + "\n" + result.stdout()).trim();
-        return output.isEmpty() ? "<no output>" : output;
     }
 }

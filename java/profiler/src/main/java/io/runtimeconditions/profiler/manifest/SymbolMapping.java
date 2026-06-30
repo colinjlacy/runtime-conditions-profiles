@@ -1,10 +1,10 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.manifest;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-final class JavaSymbolMapping {
+public final class SymbolMapping {
     private final String className;
     private final String memberName;
     private final String memberField;
@@ -19,9 +19,9 @@ final class JavaSymbolMapping {
     private final Map<String, Integer> stringArgs;
     private final List<String> appliesToKinds;
     private final List<String> appliesToInterfaceTypes;
-    private final List<JavaSymbolMapping> options;
+    private final List<SymbolMapping> options;
 
-    JavaSymbolMapping(
+    SymbolMapping(
             String className,
             String memberName,
             String memberField,
@@ -36,7 +36,7 @@ final class JavaSymbolMapping {
             Map<String, Integer> stringArgs,
             List<String> appliesToKinds,
             List<String> appliesToInterfaceTypes,
-            List<JavaSymbolMapping> options) {
+            List<SymbolMapping> options) {
         this.className = className;
         this.memberName = memberName;
         this.memberField = memberField;
@@ -54,63 +54,63 @@ final class JavaSymbolMapping {
         this.options = List.copyOf(Objects.requireNonNull(options, "options"));
     }
 
-    String className() {
+    public String className() {
         return className;
     }
 
-    String memberName() {
+    public String memberName() {
         return memberName;
     }
 
-    String memberField() {
+    public String memberField() {
         return memberField;
     }
 
-    String target() {
+    public String target() {
         return target;
     }
 
-    String kind() {
+    public String kind() {
         return kind;
     }
 
-    String interfaceType() {
+    public String interfaceType() {
         return interfaceType;
     }
 
-    String value() {
+    public String value() {
         return value;
     }
 
-    String method() {
+    public String method() {
         return method;
     }
 
-    Integer nameArg() {
+    public Integer nameArg() {
         return nameArg;
     }
 
-    Integer classArg() {
+    public Integer classArg() {
         return classArg;
     }
 
-    Integer enumArg() {
+    public Integer enumArg() {
         return enumArg;
     }
 
-    Map<String, Integer> stringArgs() {
+    public Map<String, Integer> stringArgs() {
         return stringArgs;
     }
 
-    List<String> appliesToKinds() {
+    public List<String> appliesToKinds() {
         return appliesToKinds;
     }
 
-    List<String> appliesToInterfaceTypes() {
+    public List<String> appliesToInterfaceTypes() {
         return appliesToInterfaceTypes;
     }
 
-    List<JavaSymbolMapping> options() {
+    public List<SymbolMapping> options() {
         return options;
     }
 }

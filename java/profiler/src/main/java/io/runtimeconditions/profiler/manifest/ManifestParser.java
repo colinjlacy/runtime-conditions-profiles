@@ -1,16 +1,17 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.manifest;
 
+import io.runtimeconditions.profiler.extension.RuntimeConditionsDiagnostic;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-final class JavaManifestParser {
-    JavaManifestModel parse(YamlDocument document, String source, List<RuntimeConditionsDiagnostic> diagnostics) {
+public final class ManifestParser {
+    public ManifestModel parse(YamlDocument document, String source, List<RuntimeConditionsDiagnostic> diagnostics) {
         Map<String, Object> javaSection = YamlDocument.asMap(document.value("java"));
         if (javaSection == null) {
             diagnostics.add(error("package-language", source, "java section must be a mapping"));
-            return new JavaManifestModel(null, Map.of(), List.of(), List.of());
+            return new ManifestModel(null, Map.of(), List.of(), List.of());
         }
 
         String packageName = scalar(javaSection, "package");
@@ -22,13 +23,13 @@ final class JavaManifestParser {
         }
 
         Map<String, String> constants = parseConstants(javaSection.get("constants"), source, diagnostics);
-        List<JavaSymbolMapping> declarations = parseMappings(
+        List<SymbolMapping> declarations = parseMappings(
                 javaSection.get("declarations"),
                 "java.declarations",
                 true,
                 source,
                 diagnostics);
-        List<JavaSymbolMapping> options = parseMappings(
+        List<SymbolMapping> options = parseMappings(
                 javaSection.get("options"),
                 "java.options",
                 false,
@@ -39,7 +40,7 @@ final class JavaManifestParser {
             diagnostics.add(error("package-manifest", source, "at least one java.declarations or java.options entry is required"));
         }
 
-        return new JavaManifestModel(packageName, constants, declarations, options);
+        return new ManifestModel(packageName, constants, declarations, options);
     }
 
     private Map<String, String> parseConstants(
@@ -66,7 +67,7 @@ final class JavaManifestParser {
         return constants;
     }
 
-    private List<JavaSymbolMapping> parseMappings(
+    private List<SymbolMapping> parseMappings(
             Object value,
             String path,
             boolean declaration,
@@ -80,7 +81,7 @@ final class JavaManifestParser {
             diagnostics.add(error("package-manifest", source, path + " must be a sequence"));
             return List.of();
         }
-        List<JavaSymbolMapping> mappings = new ArrayList<>();
+        List<SymbolMapping> mappings = new ArrayList<>();
         for (int i = 0; i < input.size(); i++) {
             Map<String, Object> item = YamlDocument.asMap(input.get(i));
             String itemPath = path + "[" + i + "]";
@@ -93,7 +94,7 @@ final class JavaManifestParser {
         return mappings;
     }
 
-    private JavaSymbolMapping parseMapping(
+    private SymbolMapping parseMapping(
             Map<String, Object> item,
             String path,
             boolean declaration,
@@ -117,8 +118,8 @@ final class JavaManifestParser {
             diagnostics.add(error("package-manifest", source, path + ".target is required"));
         }
 
-        List<JavaSymbolMapping> options = parseMappings(item.get("options"), path + ".options", false, source, diagnostics);
-        return new JavaSymbolMapping(
+        List<SymbolMapping> options = parseMappings(item.get("options"), path + ".options", false, source, diagnostics);
+        return new SymbolMapping(
                 className,
                 memberName,
                 memberField,

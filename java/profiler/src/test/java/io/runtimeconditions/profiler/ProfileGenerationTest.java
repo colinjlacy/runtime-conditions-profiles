@@ -1,5 +1,13 @@
 package io.runtimeconditions.profiler;
 
+import io.runtimeconditions.profiler.extension.RuntimeConditionsDiagnostic;
+import io.runtimeconditions.profiler.profile.ProfileExtractor;
+import io.runtimeconditions.profiler.profile.ProfileOptions;
+import io.runtimeconditions.profiler.profile.ProfileValidator;
+import io.runtimeconditions.profiler.profile.ProfileYamlWriter;
+import io.runtimeconditions.profiler.project.DiscoveryOptions;
+import io.runtimeconditions.profiler.project.DiscoveryResult;
+import io.runtimeconditions.profiler.project.ProjectDiscovery;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -19,14 +27,14 @@ public final class ProfileGenerationTest {
         Path env = repoRoot.resolve("extensions/env-configuration/java");
         DiscoveryOptions discoveryOptions = new DiscoveryOptions(List.of(common, env), false);
 
-        Map<String, Object> profile = new JavaProfileExtractor().extract(
+        Map<String, Object> profile = new ProfileExtractor().extract(
                 app,
-                new JavaProfileOptions(
+                new ProfileOptions(
                         "java-declarative-app",
                         "example/java-declarative-app",
                         "test",
                         discoveryOptions));
-        DiscoveryResult discovery = new JavaProjectDiscovery().discover(app, discoveryOptions);
+        DiscoveryResult discovery = new ProjectDiscovery().discover(app, discoveryOptions);
 
         assertEquals("runtimeconditions.io/v1alpha1", profile.get("apiVersion"), "apiVersion");
         assertEquals("RuntimeConditionsProfile", profile.get("kind"), "kind");
@@ -71,7 +79,7 @@ public final class ProfileGenerationTest {
         assertTrue(yaml.contains("kind: RuntimeConditionsProfile"), "YAML should contain profile kind");
         assertTrue(yaml.contains("name: users-api"), "YAML should contain API condition");
 
-        assertTrue(new JavaProfileValidator().validate(profile, discovery).isEmpty(), "generated profile should validate");
+        assertTrue(new ProfileValidator().validate(profile, discovery).isEmpty(), "generated profile should validate");
         assertGoldenProfile(
                 app,
                 discoveryOptions,
@@ -139,9 +147,9 @@ public final class ProfileGenerationTest {
             String workloadUri,
             String workloadVersion,
             Path golden) throws Exception {
-        Map<String, Object> profile = new JavaProfileExtractor().extract(
+        Map<String, Object> profile = new ProfileExtractor().extract(
                 app,
-                new JavaProfileOptions(name, workloadUri, workloadVersion, options));
+                new ProfileOptions(name, workloadUri, workloadVersion, options));
         String actual = normalize(ProfileYamlWriter.write(profile));
         String expected = normalize(Files.readString(golden));
         assertEquals(expected, actual, golden.getFileName().toString());
@@ -177,7 +185,7 @@ public final class ProfileGenerationTest {
             Map<String, Object> profile,
             DiscoveryResult discovery,
             String expectedMessage) {
-        List<RuntimeConditionsDiagnostic> diagnostics = new JavaProfileValidator().validate(profile, discovery);
+        List<RuntimeConditionsDiagnostic> diagnostics = new ProfileValidator().validate(profile, discovery);
         for (RuntimeConditionsDiagnostic diagnostic : diagnostics) {
             if (diagnostic.message().contains(expectedMessage)) {
                 return;

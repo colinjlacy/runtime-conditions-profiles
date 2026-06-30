@@ -1,16 +1,18 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.extension;
 
+import io.runtimeconditions.profiler.manifest.ManifestModel;
+import io.runtimeconditions.profiler.project.RuntimeConditionsArtifact;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-final class ValidatedRuntimeConditionsArtifact {
+public final class ValidatedRuntimeConditionsArtifact {
     private final RuntimeConditionsArtifact artifact;
     private final String manifestExtensionId;
     private final String extensionId;
     private final String extensionDefinitionUri;
     private final ExtensionDefinitionModel extensionDefinition;
-    private final JavaManifestModel javaManifest;
+    private final ManifestModel javaManifest;
     private final List<String> dependencies;
     private final List<RuntimeConditionsDiagnostic> diagnostics;
 
@@ -20,7 +22,7 @@ final class ValidatedRuntimeConditionsArtifact {
             String extensionId,
             String extensionDefinitionUri,
             ExtensionDefinitionModel extensionDefinition,
-            JavaManifestModel javaManifest,
+            ManifestModel javaManifest,
             List<String> dependencies,
             List<RuntimeConditionsDiagnostic> diagnostics) {
         this.artifact = Objects.requireNonNull(artifact, "artifact");
@@ -33,35 +35,35 @@ final class ValidatedRuntimeConditionsArtifact {
         this.diagnostics = new ArrayList<>(diagnostics);
     }
 
-    RuntimeConditionsArtifact artifact() {
+    public RuntimeConditionsArtifact artifact() {
         return artifact;
     }
 
-    String manifestExtensionId() {
+    public String manifestExtensionId() {
         return manifestExtensionId;
     }
 
-    String extensionId() {
+    public String extensionId() {
         return extensionId;
     }
 
-    String extensionDefinitionUri() {
+    public String extensionDefinitionUri() {
         return extensionDefinitionUri;
     }
 
-    ExtensionDefinitionModel extensionDefinition() {
+    public ExtensionDefinitionModel extensionDefinition() {
         return extensionDefinition;
     }
 
-    JavaManifestModel javaManifest() {
+    public ManifestModel javaManifest() {
         return javaManifest;
     }
 
-    List<String> dependencies() {
+    public List<String> dependencies() {
         return dependencies;
     }
 
-    List<RuntimeConditionsDiagnostic> diagnostics() {
+    public List<RuntimeConditionsDiagnostic> diagnostics() {
         return List.copyOf(diagnostics);
     }
 

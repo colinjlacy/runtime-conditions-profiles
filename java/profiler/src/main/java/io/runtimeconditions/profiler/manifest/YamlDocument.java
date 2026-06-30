@@ -1,4 +1,4 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.manifest;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -8,14 +8,14 @@ import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
-final class YamlDocument {
+public final class YamlDocument {
     private final Map<String, Object> root;
 
     private YamlDocument(Map<String, Object> root) {
         this.root = Map.copyOf(root);
     }
 
-    static YamlDocument parse(String source) {
+    public static YamlDocument parse(String source) {
         LoaderOptions options = new LoaderOptions();
         Object loaded = new Yaml(new SafeConstructor(options)).load(source);
         if (loaded == null) {
@@ -27,7 +27,7 @@ final class YamlDocument {
         return new YamlDocument(copyStringMap(map));
     }
 
-    Object value(String... path) {
+    public Object value(String... path) {
         Object current = root;
         for (String segment : path) {
             if (!(current instanceof Map<?, ?> map)) {
@@ -38,7 +38,7 @@ final class YamlDocument {
         return current;
     }
 
-    String scalar(String... path) {
+    public String scalar(String... path) {
         Object value = value(path);
         if (value == null) {
             return null;
@@ -49,7 +49,7 @@ final class YamlDocument {
         return null;
     }
 
-    List<String> stringList(String... path) {
+    public List<String> stringList(String... path) {
         Object value = value(path);
         if (!(value instanceof List<?> list)) {
             return List.of();
@@ -63,19 +63,19 @@ final class YamlDocument {
         return List.copyOf(result);
     }
 
-    boolean hasSection(String section) {
+    public boolean hasSection(String section) {
         return root.containsKey(section);
     }
 
     @SuppressWarnings("unchecked")
-    static Map<String, Object> asMap(Object value) {
+    public static Map<String, Object> asMap(Object value) {
         if (!(value instanceof Map<?, ?> map)) {
             return null;
         }
         return (Map<String, Object>) map;
     }
 
-    static List<?> asList(Object value) {
+    public static List<?> asList(Object value) {
         if (!(value instanceof List<?> list)) {
             return null;
         }

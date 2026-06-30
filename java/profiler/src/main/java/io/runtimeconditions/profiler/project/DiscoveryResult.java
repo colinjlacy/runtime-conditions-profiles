@@ -1,11 +1,13 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.project;
 
+import io.runtimeconditions.profiler.extension.RuntimeConditionsDiagnostic;
+import io.runtimeconditions.profiler.extension.ValidatedRuntimeConditionsArtifact;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-final class DiscoveryResult {
+public final class DiscoveryResult {
     private final Path projectRoot;
     private final BuildTool buildTool;
     private final List<Path> modules;
@@ -13,7 +15,7 @@ final class DiscoveryResult {
     private final List<RuntimeConditionsArtifact> artifacts;
     private final List<ValidatedRuntimeConditionsArtifact> validatedArtifacts;
 
-    DiscoveryResult(
+    public DiscoveryResult(
             Path projectRoot,
             BuildTool buildTool,
             List<Path> modules,
@@ -28,31 +30,31 @@ final class DiscoveryResult {
         this.validatedArtifacts = List.copyOf(validatedArtifacts);
     }
 
-    Path projectRoot() {
+    public Path projectRoot() {
         return projectRoot;
     }
 
-    BuildTool buildTool() {
+    public BuildTool buildTool() {
         return buildTool;
     }
 
-    List<Path> modules() {
+    public List<Path> modules() {
         return modules;
     }
 
-    List<Path> classpathEntries() {
+    public List<Path> classpathEntries() {
         return classpathEntries;
     }
 
-    List<RuntimeConditionsArtifact> artifacts() {
+    public List<RuntimeConditionsArtifact> artifacts() {
         return artifacts;
     }
 
-    List<ValidatedRuntimeConditionsArtifact> validatedArtifacts() {
+    public List<ValidatedRuntimeConditionsArtifact> validatedArtifacts() {
         return validatedArtifacts;
     }
 
-    List<RuntimeConditionsDiagnostic> diagnostics() {
+    public List<RuntimeConditionsDiagnostic> diagnostics() {
         List<RuntimeConditionsDiagnostic> diagnostics = new ArrayList<>();
         for (ValidatedRuntimeConditionsArtifact artifact : validatedArtifacts) {
             diagnostics.addAll(artifact.diagnostics());
@@ -60,7 +62,7 @@ final class DiscoveryResult {
         return List.copyOf(diagnostics);
     }
 
-    boolean hasErrors() {
+    public boolean hasErrors() {
         return diagnostics().stream()
                 .anyMatch(diagnostic -> diagnostic.severity() == RuntimeConditionsDiagnostic.Severity.ERROR);
     }

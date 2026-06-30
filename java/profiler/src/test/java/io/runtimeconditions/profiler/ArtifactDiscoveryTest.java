@@ -1,5 +1,10 @@
 package io.runtimeconditions.profiler;
 
+import io.runtimeconditions.profiler.project.ArtifactDiscovery;
+import io.runtimeconditions.profiler.project.BuildTool;
+import io.runtimeconditions.profiler.project.DiscoveryResult;
+import io.runtimeconditions.profiler.project.ProjectDiscovery;
+import io.runtimeconditions.profiler.project.RuntimeConditionsArtifact;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,7 +28,7 @@ public final class ArtifactDiscoveryTest {
     }
 
     private static void verifiesMavenResources(Path root) throws Exception {
-        DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
+        DiscoveryResult result = new ProjectDiscovery().discover(root, List.of());
         assertEquals(BuildTool.MAVEN, result.buildTool(), "Maven project should be detected");
         assertEquals(1, result.artifacts().size(), "Maven fixture should expose one artifact");
         RuntimeConditionsArtifact artifact = result.artifacts().get(0);
@@ -33,7 +38,7 @@ public final class ArtifactDiscoveryTest {
     }
 
     private static void verifiesGradleModules(Path root) throws Exception {
-        DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
+        DiscoveryResult result = new ProjectDiscovery().discover(root, List.of());
         assertEquals(BuildTool.GRADLE, result.buildTool(), "Gradle project should be detected");
         assertEquals(1, result.modules().size(), "Gradle fixture should expose one module");
         assertEquals(1, result.artifacts().size(), "Gradle fixture should expose one artifact");

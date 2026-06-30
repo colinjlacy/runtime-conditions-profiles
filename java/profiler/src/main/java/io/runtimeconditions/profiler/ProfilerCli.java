@@ -1,5 +1,18 @@
 package io.runtimeconditions.profiler;
 
+import io.runtimeconditions.profiler.extension.ArtifactValidator;
+import io.runtimeconditions.profiler.extension.RuntimeConditionsDiagnostic;
+import io.runtimeconditions.profiler.extension.ValidatedRuntimeConditionsArtifact;
+import io.runtimeconditions.profiler.manifest.ManifestModel;
+import io.runtimeconditions.profiler.manifest.YamlDocument;
+import io.runtimeconditions.profiler.profile.ProfileExtractor;
+import io.runtimeconditions.profiler.profile.ProfileOptions;
+import io.runtimeconditions.profiler.profile.ProfileYamlWriter;
+import io.runtimeconditions.profiler.project.ArtifactDiscovery;
+import io.runtimeconditions.profiler.project.DiscoveryOptions;
+import io.runtimeconditions.profiler.project.DiscoveryResult;
+import io.runtimeconditions.profiler.project.ProjectDiscovery;
+import io.runtimeconditions.profiler.project.RuntimeConditionsArtifact;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -53,9 +66,9 @@ public final class ProfilerCli {
         Path root = project.toAbsolutePath().normalize();
         String profileName = name.isBlank() ? root.getFileName().toString() : name;
         String uri = workloadUri.isBlank() ? root.toString() : workloadUri;
-        String yaml = ProfileYamlWriter.write(new JavaProfileExtractor().extract(
+        String yaml = ProfileYamlWriter.write(new ProfileExtractor().extract(
                 root,
-                new JavaProfileOptions(
+                new ProfileOptions(
                         profileName,
                         uri,
                         workloadVersion,
@@ -82,7 +95,7 @@ public final class ProfilerCli {
             }
         }
 
-        DiscoveryResult result = new JavaProjectDiscovery().discover(
+        DiscoveryResult result = new ProjectDiscovery().discover(
                 project,
                 new DiscoveryOptions(classpath, resolveBuildClasspath));
         if (json) {
@@ -312,22 +325,22 @@ public final class ProfilerCli {
     }
 
     private static String javaPackageNullable(ValidatedRuntimeConditionsArtifact artifact) {
-        JavaManifestModel manifest = artifact.javaManifest();
+        ManifestModel manifest = artifact.javaManifest();
         return manifest == null ? null : manifest.packageName();
     }
 
     private static int declarationCount(ValidatedRuntimeConditionsArtifact artifact) {
-        JavaManifestModel manifest = artifact.javaManifest();
+        ManifestModel manifest = artifact.javaManifest();
         return manifest == null ? 0 : manifest.declarations().size();
     }
 
     private static int optionCount(ValidatedRuntimeConditionsArtifact artifact) {
-        JavaManifestModel manifest = artifact.javaManifest();
+        ManifestModel manifest = artifact.javaManifest();
         return manifest == null ? 0 : manifest.options().size();
     }
 
     private static int constantCount(ValidatedRuntimeConditionsArtifact artifact) {
-        JavaManifestModel manifest = artifact.javaManifest();
+        ManifestModel manifest = artifact.javaManifest();
         return manifest == null ? 0 : manifest.constants().size();
     }
 

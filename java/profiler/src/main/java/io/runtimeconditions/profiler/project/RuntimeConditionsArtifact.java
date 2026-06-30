@@ -1,10 +1,10 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.project;
 
 import java.nio.file.Path;
 import java.util.Objects;
 
-final class RuntimeConditionsArtifact {
-    enum Kind {
+public final class RuntimeConditionsArtifact {
+    public enum Kind {
         BINDING,
         PACKAGE
     }
@@ -23,24 +23,23 @@ final class RuntimeConditionsArtifact {
         this.sourcePath = sourcePath;
     }
 
-    Kind kind() {
+    public Kind kind() {
         return kind;
     }
 
-    String manifestUri() {
+    public String manifestUri() {
         return manifestUri;
     }
 
-    String extensionUri() {
+    public String extensionUri() {
         return extensionUri;
     }
 
-    String origin() {
+    public String origin() {
         return origin;
     }
 
-    Path sourcePath() {
+    public Path sourcePath() {
         return sourcePath;
     }
 }
-

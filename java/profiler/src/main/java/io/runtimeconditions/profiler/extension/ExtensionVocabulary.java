@@ -1,18 +1,18 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.extension;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-final class ExtensionVocabulary {
+public final class ExtensionVocabulary {
     private final List<ExtensionDefinitionModel> definitions;
 
-    ExtensionVocabulary(List<ExtensionDefinitionModel> definitions) {
+    public ExtensionVocabulary(List<ExtensionDefinitionModel> definitions) {
         this.definitions = List.copyOf(definitions);
     }
 
-    int kindCount(String name) {
+    public int kindCount(String name) {
         int count = 0;
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionKind item : definition.kinds()) {
@@ -24,7 +24,7 @@ final class ExtensionVocabulary {
         return count;
     }
 
-    int interfaceTypeCount(String kind, String name) {
+    public int interfaceTypeCount(String kind, String name) {
         int count = 0;
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionInterfaceType item : definition.interfaceTypes()) {
@@ -36,7 +36,7 @@ final class ExtensionVocabulary {
         return count;
     }
 
-    int interfaceFieldCount(String kind, String interfaceType, String name) {
+    public int interfaceFieldCount(String kind, String interfaceType, String name) {
         int count = 0;
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionInterfaceField item : definition.interfaceFields()) {
@@ -50,7 +50,7 @@ final class ExtensionVocabulary {
         return count;
     }
 
-    int conditionFieldCount(String kind, String interfaceType, String name) {
+    public int conditionFieldCount(String kind, String interfaceType, String name) {
         int count = 0;
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionConditionField item : definition.conditionFields()) {
@@ -62,7 +62,7 @@ final class ExtensionVocabulary {
         return count;
     }
 
-    int fieldValueCount(String field, String kind, String interfaceType, String value) {
+    public int fieldValueCount(String field, String kind, String interfaceType, String value) {
         int count = 0;
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionFieldValue item : definition.fieldValues()) {
@@ -77,7 +77,7 @@ final class ExtensionVocabulary {
         return count;
     }
 
-    int fieldValueDefinitionCount(String field, String kind, String interfaceType) {
+    public int fieldValueDefinitionCount(String field, String kind, String interfaceType) {
         int count = 0;
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionFieldValue item : definition.fieldValues()) {
@@ -91,7 +91,7 @@ final class ExtensionVocabulary {
         return count;
     }
 
-    int fieldValueValueCount(String value) {
+    public int fieldValueValueCount(String value) {
         int count = 0;
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionFieldValue item : definition.fieldValues()) {
@@ -103,7 +103,7 @@ final class ExtensionVocabulary {
         return count;
     }
 
-    Map<String, Integer> counts() {
+    public Map<String, Integer> counts() {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionKind item : definition.kinds()) {
@@ -122,7 +122,7 @@ final class ExtensionVocabulary {
         return counts;
     }
 
-    List<String> conditionFieldConflicts() {
+    public List<String> conditionFieldConflicts() {
         List<ConditionFieldDefinition> fields = new ArrayList<>();
         for (ExtensionDefinitionModel definition : definitions) {
             for (ExtensionDefinitionModel.ExtensionConditionField field : definition.conditionFields()) {

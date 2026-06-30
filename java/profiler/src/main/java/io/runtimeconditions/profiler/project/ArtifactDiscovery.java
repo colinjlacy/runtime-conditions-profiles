@@ -1,4 +1,4 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.project;
 
 import java.io.IOException;
 import java.net.URI;
@@ -10,17 +10,17 @@ import java.util.List;
 import java.util.Set;
 import java.util.jar.JarFile;
 
-final class ArtifactDiscovery {
-    static final String RESOURCE_ROOT = "META-INF/runtimeconditions";
+public final class ArtifactDiscovery {
+    public static final String RESOURCE_ROOT = "META-INF/runtimeconditions";
     static final String BINDINGS_MANIFEST = "runtimeconditions.bindings.yaml";
     static final String PACKAGE_MANIFEST = "runtimeconditions.package.yaml";
-    static final String EXTENSION_DEFINITION = "runtimeconditions.extension.yaml";
+    public static final String EXTENSION_DEFINITION = "runtimeconditions.extension.yaml";
 
-    List<RuntimeConditionsArtifact> discoverProjectArtifacts(Path projectRoot, BuildTool buildTool) throws IOException {
+    public List<RuntimeConditionsArtifact> discoverProjectArtifacts(Path projectRoot, BuildTool buildTool) throws IOException {
         return discoverProjectArtifacts(projectRoot, buildTool, true);
     }
 
-    List<RuntimeConditionsArtifact> discoverProjectArtifacts(Path projectRoot, BuildTool buildTool, boolean includeSourceLayout) throws IOException {
+    public List<RuntimeConditionsArtifact> discoverProjectArtifacts(Path projectRoot, BuildTool buildTool, boolean includeSourceLayout) throws IOException {
         List<Path> candidates = new ArrayList<>();
         if (includeSourceLayout) {
             candidates.add(projectRoot.resolve("src/main/resources").resolve(RESOURCE_ROOT));
@@ -34,7 +34,7 @@ final class ArtifactDiscovery {
         return artifacts;
     }
 
-    List<RuntimeConditionsArtifact> discoverClasspathArtifact(Path entry) throws IOException {
+    public List<RuntimeConditionsArtifact> discoverClasspathArtifact(Path entry) throws IOException {
         if (Files.isDirectory(entry)) {
             List<RuntimeConditionsArtifact> artifacts = new ArrayList<>();
             artifacts.addAll(discoverDirectory(entry.resolve(RESOURCE_ROOT), "classpath:" + entry));
@@ -47,7 +47,7 @@ final class ArtifactDiscovery {
         return List.of();
     }
 
-    List<RuntimeConditionsArtifact> discoverArtifactsUnder(Path root) throws IOException {
+    public List<RuntimeConditionsArtifact> discoverArtifactsUnder(Path root) throws IOException {
         Path resolvedRoot = root.toAbsolutePath().normalize();
         if (!Files.isDirectory(resolvedRoot)) {
             return List.of();

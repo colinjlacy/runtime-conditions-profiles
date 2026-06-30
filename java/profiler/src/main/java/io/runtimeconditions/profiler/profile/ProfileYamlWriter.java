@@ -1,14 +1,14 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.profile;
 
 import java.util.Map;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
-final class ProfileYamlWriter {
+public final class ProfileYamlWriter {
     private ProfileYamlWriter() {
     }
 
-    static String write(Map<String, Object> profile) {
+    public static String write(Map<String, Object> profile) {
         DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         options.setPrettyFlow(true);

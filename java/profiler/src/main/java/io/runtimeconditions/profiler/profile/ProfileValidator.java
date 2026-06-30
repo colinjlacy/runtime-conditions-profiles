@@ -1,5 +1,10 @@
-package io.runtimeconditions.profiler;
+package io.runtimeconditions.profiler.profile;
 
+import io.runtimeconditions.profiler.extension.ExtensionDefinitionModel;
+import io.runtimeconditions.profiler.extension.ExtensionVocabulary;
+import io.runtimeconditions.profiler.extension.RuntimeConditionsDiagnostic;
+import io.runtimeconditions.profiler.extension.ValidatedRuntimeConditionsArtifact;
+import io.runtimeconditions.profiler.project.DiscoveryResult;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -7,11 +12,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-final class JavaProfileValidator {
+public final class ProfileValidator {
     private static final String API_VERSION = "runtimeconditions.io/v1alpha1";
     private final List<RuntimeConditionsDiagnostic> diagnostics = new ArrayList<>();
 
-    List<RuntimeConditionsDiagnostic> validate(Map<String, Object> profile, DiscoveryResult discovery) {
+    public List<RuntimeConditionsDiagnostic> validate(Map<String, Object> profile, DiscoveryResult discovery) {
         diagnostics.clear();
         if (!API_VERSION.equals(scalar(profile.get("apiVersion")))) {
             add("apiVersion must be " + API_VERSION);
