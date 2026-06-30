@@ -17,6 +17,9 @@ final class JavaManifestParser {
         if (isBlank(packageName)) {
             diagnostics.add(error("package-manifest", source, "java.package is required"));
         }
+        if (javaSection.containsKey("class")) {
+            diagnostics.add(error("package-manifest", source, "top-level java.class must not be used; Java bindings use per-entry class"));
+        }
 
         Map<String, String> constants = parseConstants(javaSection.get("constants"), source, diagnostics);
         List<JavaSymbolMapping> declarations = parseMappings(

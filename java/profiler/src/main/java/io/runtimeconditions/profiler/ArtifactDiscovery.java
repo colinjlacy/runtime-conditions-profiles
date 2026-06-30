@@ -5,7 +5,9 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarFile;
 
 final class ArtifactDiscovery {
@@ -43,6 +45,29 @@ final class ArtifactDiscovery {
             return discoverJar(entry);
         }
         return List.of();
+    }
+
+    List<RuntimeConditionsArtifact> discoverArtifactsUnder(Path root) throws IOException {
+        Path resolvedRoot = root.toAbsolutePath().normalize();
+        if (!Files.isDirectory(resolvedRoot)) {
+            return List.of();
+        }
+        Set<Path> manifestDirs = new LinkedHashSet<>();
+        try (var stream = Files.walk(resolvedRoot)) {
+            stream.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().equals(BINDINGS_MANIFEST)
+                            || path.getFileName().toString().equals(PACKAGE_MANIFEST))
+                    .filter(path -> !containsPathSegment(path, "target"))
+                    .filter(path -> !containsPathSegment(path, "build"))
+                    .filter(path -> !containsPathSegment(path, ".gradle"))
+                    .sorted()
+                    .forEach(path -> manifestDirs.add(path.getParent()));
+        }
+        List<RuntimeConditionsArtifact> artifacts = new ArrayList<>();
+        for (Path dir : manifestDirs) {
+            artifacts.addAll(discoverDirectory(dir, "root:" + resolvedRoot));
+        }
+        return artifacts;
     }
 
     private List<RuntimeConditionsArtifact> discoverDirectory(Path directory, String origin) {
@@ -101,5 +126,14 @@ final class ArtifactDiscovery {
 
     private String jarUri(Path jar, String entry) {
         return URI.create("jar:" + jar.toUri() + "!/" + entry).toString();
+    }
+
+    private boolean containsPathSegment(Path path, String segment) {
+        for (Path part : path) {
+            if (part.toString().equals(segment)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

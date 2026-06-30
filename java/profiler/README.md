@@ -24,6 +24,7 @@ Current implementation:
 - Generates Runtime Conditions Profiles from `RuntimeConditionsBinding` declarative Java calls.
 - Emits profile YAML from Java declarations, nested options, enum constants, class literals, and simple Java schema classes.
 - Validates generated profiles against the resolved extension dependency closure and vocabulary before output.
+- Validates Java extension package artifacts recursively with `validate-extension` and `validate-extensions`.
 
 Not implemented yet:
 
@@ -43,6 +44,10 @@ java -cp "$CP" \
   io.runtimeconditions.profiler.ProfilerCli discover \
   --project src/testdata/maven-app \
   --resolve-build-classpath
+
+java -cp "$CP" \
+  io.runtimeconditions.profiler.ProfilerCli validate-extensions \
+  --root ../../extensions
 
 java -cp "$CP" \
   io.runtimeconditions.profiler.ProfilerCli generate \

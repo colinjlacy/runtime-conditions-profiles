@@ -45,7 +45,7 @@ final class JavaProfileValidator {
             }
         }
 
-        Vocabulary vocabulary = new Vocabulary(closure.stream()
+        ExtensionVocabulary vocabulary = new ExtensionVocabulary(closure.stream()
                 .map(definitions::get)
                 .filter(definition -> definition != null)
                 .toList());
@@ -103,7 +103,7 @@ final class JavaProfileValidator {
         resolved.add(id);
     }
 
-    private void checkResolvedConflicts(Vocabulary vocabulary) {
+    private void checkResolvedConflicts(ExtensionVocabulary vocabulary) {
         for (Map.Entry<String, Integer> entry : vocabulary.counts().entrySet()) {
             if (entry.getValue() > 1) {
                 add("resolved extension set contains vocabulary conflict for " + entry.getKey());
@@ -114,7 +114,7 @@ final class JavaProfileValidator {
         }
     }
 
-    private void validateCondition(int index, Vocabulary vocabulary, Map<?, ?> condition) {
+    private void validateCondition(int index, ExtensionVocabulary vocabulary, Map<?, ?> condition) {
         String prefix = "conditions[" + index + "]";
         String kind = scalar(condition.get("kind"));
         Map<?, ?> iface = map(condition.get("interface"), prefix + ".interface");
@@ -176,7 +176,7 @@ final class JavaProfileValidator {
 
     private void validateConfiguration(
             String prefix,
-            Vocabulary vocabulary,
+            ExtensionVocabulary vocabulary,
             String kind,
             String interfaceType,
             Map<?, ?> configuration) {
@@ -264,156 +264,4 @@ final class JavaProfileValidator {
                 message));
     }
 
-    private static final class Vocabulary {
-        private final List<ExtensionDefinitionModel> definitions;
-
-        private Vocabulary(List<ExtensionDefinitionModel> definitions) {
-            this.definitions = List.copyOf(definitions);
-        }
-
-        private int kindCount(String name) {
-            int count = 0;
-            for (ExtensionDefinitionModel definition : definitions) {
-                for (ExtensionDefinitionModel.ExtensionKind item : definition.kinds()) {
-                    if (name.equals(item.name())) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
-
-        private int interfaceTypeCount(String kind, String name) {
-            int count = 0;
-            for (ExtensionDefinitionModel definition : definitions) {
-                for (ExtensionDefinitionModel.ExtensionInterfaceType item : definition.interfaceTypes()) {
-                    if (kind.equals(item.targetKind()) && name.equals(item.name())) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
-
-        private int interfaceFieldCount(String kind, String interfaceType, String name) {
-            int count = 0;
-            for (ExtensionDefinitionModel definition : definitions) {
-                for (ExtensionDefinitionModel.ExtensionInterfaceField item : definition.interfaceFields()) {
-                    if (kind.equals(item.targetKind()) && interfaceType.equals(item.targetType()) && name.equals(item.name())) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
-
-        private int conditionFieldCount(String kind, String interfaceType, String name) {
-            int count = 0;
-            for (ExtensionDefinitionModel definition : definitions) {
-                for (ExtensionDefinitionModel.ExtensionConditionField item : definition.conditionFields()) {
-                    if (name.equals(item.name()) && conditionFieldApplies(item, kind, interfaceType)) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
-
-        private int fieldValueCount(String field, String kind, String interfaceType, String value) {
-            int count = 0;
-            for (ExtensionDefinitionModel definition : definitions) {
-                for (ExtensionDefinitionModel.ExtensionFieldValue item : definition.fieldValues()) {
-                    if (field.equals(item.field())
-                            && kind.equals(item.targetKind())
-                            && interfaceType.equals(item.targetType())
-                            && item.values().contains(value)) {
-                        count++;
-                    }
-                }
-            }
-            return count;
-        }
-
-        private Map<String, Integer> counts() {
-            Map<String, Integer> counts = new LinkedHashMap<>();
-            for (ExtensionDefinitionModel definition : definitions) {
-                for (ExtensionDefinitionModel.ExtensionKind item : definition.kinds()) {
-                    increment(counts, "kind:" + item.name());
-                }
-                for (ExtensionDefinitionModel.ExtensionInterfaceType item : definition.interfaceTypes()) {
-                    increment(counts, "interfaceType:" + item.targetKind() + ":" + item.name());
-                }
-                for (ExtensionDefinitionModel.ExtensionInterfaceField item : definition.interfaceFields()) {
-                    increment(counts, "interfaceField:" + item.targetKind() + ":" + item.targetType() + ":" + item.name());
-                }
-                for (ExtensionDefinitionModel.ExtensionFieldValue item : definition.fieldValues()) {
-                    increment(counts, "fieldValues:" + item.targetKind() + ":" + item.targetType() + ":" + item.field());
-                }
-            }
-            return counts;
-        }
-
-        private List<String> conditionFieldConflicts() {
-            List<ConditionFieldDefinition> fields = new ArrayList<>();
-            for (ExtensionDefinitionModel definition : definitions) {
-                for (ExtensionDefinitionModel.ExtensionConditionField field : definition.conditionFields()) {
-                    fields.add(new ConditionFieldDefinition(definition, field));
-                }
-            }
-            List<String> conflicts = new ArrayList<>();
-            for (int i = 0; i < fields.size(); i++) {
-                for (int j = i + 1; j < fields.size(); j++) {
-                    ConditionFieldDefinition left = fields.get(i);
-                    ConditionFieldDefinition right = fields.get(j);
-                    if (left.field().name().equals(right.field().name())
-                            && conditionFieldScopesOverlap(left.field(), right.field())) {
-                        conflicts.add("conditionField:" + left.field().name() + " between " + left.definition().id() + " and " + right.definition().id());
-                    }
-                }
-            }
-            return conflicts;
-        }
-
-        private static void increment(Map<String, Integer> counts, String key) {
-            counts.put(key, counts.getOrDefault(key, 0) + 1);
-        }
-
-        private static boolean conditionFieldApplies(
-                ExtensionDefinitionModel.ExtensionConditionField field,
-                String kind,
-                String interfaceType) {
-            return field.appliesToKinds().contains(kind)
-                    && (field.appliesToInterfaceTypes().isEmpty()
-                    || field.appliesToInterfaceTypes().contains(interfaceType));
-        }
-
-        private static boolean conditionFieldScopesOverlap(
-                ExtensionDefinitionModel.ExtensionConditionField left,
-                ExtensionDefinitionModel.ExtensionConditionField right) {
-            for (String kind : left.appliesToKinds()) {
-                if (right.appliesToKinds().contains(kind)
-                        && stringSetsOverlapOrEitherEmpty(left.appliesToInterfaceTypes(), right.appliesToInterfaceTypes())) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private static boolean stringSetsOverlapOrEitherEmpty(List<String> left, List<String> right) {
-            if (left.isEmpty() || right.isEmpty()) {
-                return true;
-            }
-            for (String item : left) {
-                if (right.contains(item)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private record ConditionFieldDefinition(
-                ExtensionDefinitionModel definition,
-                ExtensionDefinitionModel.ExtensionConditionField field) {
-        }
-    }
 }

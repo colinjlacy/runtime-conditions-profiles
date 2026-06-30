@@ -27,6 +27,10 @@ public final class ManifestValidationTest {
         rejectsMissingExtensionDefinition();
         rejectsExtensionIdMismatch();
         rejectsUnresolvedDependency();
+        rejectsTopLevelJavaClass();
+        rejectsBindingVocabularyMismatch();
+        rejectsMissingJavaBindingMethod();
+        rejectsJavaBindingConstantMismatch();
     }
 
     private static void validatesMavenBinding(Path root) throws Exception {
@@ -75,6 +79,10 @@ public final class ManifestValidationTest {
 
                     metadata:
                       id: https://example.com/runtimeconditions/java-jar-fixture/v1alpha1/runtimeconditions.extension.yaml
+
+                    spec:
+                      kinds:
+                        - name: java.fixture
                     """);
             List<RuntimeConditionsArtifact> artifacts = new ArtifactDiscovery().discoverClasspathArtifact(jar);
             List<ValidatedRuntimeConditionsArtifact> validated = new ArtifactValidator().validate(artifacts);
@@ -202,6 +210,173 @@ public final class ManifestValidationTest {
         DiscoveryResult result = new JavaProjectDiscovery().discover(root, List.of());
         assertTrue(result.hasErrors(), "unresolved dependency should fail");
         assertDiagnosticContains(result, "cannot be resolved from discovered Runtime Conditions artifacts");
+    }
+
+    private static void rejectsTopLevelJavaClass() throws Exception {
+        Path root = Files.createTempDirectory("runtimeconditions-top-level-java-class");
+        writeBindingFixture(root, """
+                java:
+                  package: io.runtimeconditions.fixtures.invalid
+                  class: RuntimeConditions
+                  declarations:
+                    - class: Fixture
+                      function: declare
+                      nameArg: 0
+                      kind: java.fixture
+                """, """
+                public final class Fixture {
+                    public static Object declare(String name) {
+                        return new Object();
+                    }
+                }
+                """, """
+                spec:
+                  kinds:
+                    - name: java.fixture
+                """);
+
+        DiscoveryResult result = discoverRoot(root);
+        assertTrue(result.hasErrors(), "top-level java.class should fail");
+        assertDiagnosticContains(result, "top-level java.class must not be used");
+    }
+
+    private static void rejectsBindingVocabularyMismatch() throws Exception {
+        Path root = Files.createTempDirectory("runtimeconditions-java-vocabulary-mismatch");
+        writeBindingFixture(root, """
+                java:
+                  package: io.runtimeconditions.fixtures.invalid
+                  declarations:
+                    - class: Fixture
+                      function: declare
+                      nameArg: 0
+                      kind: java.unknown
+                """, """
+                public final class Fixture {
+                    public static Object declare(String name) {
+                        return new Object();
+                    }
+                }
+                """, """
+                spec:
+                  kinds:
+                    - name: java.fixture
+                """);
+
+        DiscoveryResult result = discoverRoot(root);
+        assertTrue(result.hasErrors(), "unknown declaration kind should fail");
+        assertDiagnosticContains(result, "declaration kind java.unknown");
+    }
+
+    private static void rejectsMissingJavaBindingMethod() throws Exception {
+        Path root = Files.createTempDirectory("runtimeconditions-missing-java-method");
+        writeBindingFixture(root, """
+                java:
+                  package: io.runtimeconditions.fixtures.invalid
+                  declarations:
+                    - class: Fixture
+                      function: declare
+                      nameArg: 0
+                      kind: java.fixture
+                """, """
+                public final class Fixture {
+                    public static Object other(String name) {
+                        return new Object();
+                    }
+                }
+                """, """
+                spec:
+                  kinds:
+                    - name: java.fixture
+                """);
+
+        DiscoveryResult result = discoverRoot(root);
+        assertTrue(result.hasErrors(), "missing Java binding method should fail");
+        assertDiagnosticContains(result, "Fixture.declare is not declared in Java package");
+    }
+
+    private static void rejectsJavaBindingConstantMismatch() throws Exception {
+        Path root = Files.createTempDirectory("runtimeconditions-java-constant-mismatch");
+        writeBindingFixture(root, """
+                java:
+                  package: io.runtimeconditions.fixtures.invalid
+                  constants:
+                    Fixture.VALUE: expected
+                  declarations:
+                    - class: Fixture
+                      function: declare
+                      nameArg: 0
+                      kind: java.fixture
+                """, """
+                public final class Fixture {
+                    public static final String VALUE = "actual";
+
+                    public static Object declare(String name) {
+                        return new Object();
+                    }
+                }
+                """, """
+                spec:
+                  kinds:
+                    - name: java.fixture
+                  interfaceTypes:
+                    - name: java
+                      targetKind: java.fixture
+                  interfaceFields:
+                    - name: mode
+                      targetKind: java.fixture
+                      targetType: java
+                  fieldValues:
+                    - field: interface.mode
+                      targetKind: java.fixture
+                      targetType: java
+                      values:
+                        - expected
+                """);
+
+        DiscoveryResult result = discoverRoot(root);
+        assertTrue(result.hasErrors(), "constant mismatch should fail");
+        assertDiagnosticContains(result, "does not match Java value");
+    }
+
+    private static DiscoveryResult discoverRoot(Path root) throws Exception {
+        List<RuntimeConditionsArtifact> artifacts = new ArtifactDiscovery().discoverArtifactsUnder(root);
+        return new DiscoveryResult(
+                root,
+                BuildTool.SOURCE_ONLY,
+                List.of(),
+                List.of(),
+                artifacts,
+                new ArtifactValidator().validate(artifacts));
+    }
+
+    private static void writeBindingFixture(
+            Path root,
+            String javaSection,
+            String javaSource,
+            String extensionSpec) throws IOException {
+        Files.writeString(root.resolve("runtimeconditions.bindings.yaml"), """
+                apiVersion: runtimeconditions.io/v1alpha1
+                kind: RuntimeConditionsBinding
+
+                metadata:
+                  extension: https://example.com/runtimeconditions/java-fixture/v1alpha1/runtimeconditions.extension.yaml
+                  language: java
+
+                """ + javaSection);
+        Files.writeString(root.resolve("runtimeconditions.extension.yaml"), """
+                apiVersion: runtimeconditions.io/v1alpha1
+                kind: RuntimeConditionsExtensionDefinition
+
+                metadata:
+                  id: https://example.com/runtimeconditions/java-fixture/v1alpha1/runtimeconditions.extension.yaml
+
+                """ + extensionSpec);
+        Path sourceRoot = root.resolve("src/main/java/io/runtimeconditions/fixtures/invalid");
+        Files.createDirectories(sourceRoot);
+        Files.writeString(sourceRoot.resolve("Fixture.java"), """
+                package io.runtimeconditions.fixtures.invalid;
+
+                """ + javaSource);
     }
 
     private static Path runtimeConditionsResourceRoot(Path root) {

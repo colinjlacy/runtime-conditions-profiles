@@ -18,6 +18,14 @@ public final class ProfilerCli {
             generate(dropFirst(args));
             return;
         }
+        if ("validate-extension".equals(args[0])) {
+            validateArtifacts(dropFirst(args), false);
+            return;
+        }
+        if ("validate-extensions".equals(args[0])) {
+            validateArtifacts(dropFirst(args), true);
+            return;
+        }
         throw new IllegalArgumentException("unknown command: " + args[0]);
     }
 
@@ -84,6 +92,38 @@ public final class ProfilerCli {
         printText(result);
     }
 
+    private static void validateArtifacts(String[] args, boolean plural) throws Exception {
+        Path root = Path.of(".");
+        List<Path> catalogRoots = new ArrayList<>();
+        for (int i = 0; i < args.length; i++) {
+            switch (args[i]) {
+                case "--root" -> root = Path.of(requireValue(args, ++i, "--root"));
+                case "--catalog-root" -> catalogRoots.addAll(splitCommaPaths(requireValue(args, ++i, "--catalog-root")));
+                default -> throw new IllegalArgumentException("unknown flag: " + args[i]);
+            }
+        }
+
+        ArtifactDiscovery discovery = new ArtifactDiscovery();
+        List<RuntimeConditionsArtifact> artifacts = new ArrayList<>();
+        artifacts.addAll(javaArtifacts(discovery.discoverArtifactsUnder(root)));
+        for (Path catalogRoot : catalogRoots) {
+            artifacts.addAll(javaArtifacts(discovery.discoverArtifactsUnder(catalogRoot)));
+        }
+        if (artifacts.isEmpty()) {
+            throw new IllegalArgumentException("no Runtime Conditions Java artifacts discovered under " + root.toAbsolutePath().normalize());
+        }
+
+        List<ValidatedRuntimeConditionsArtifact> validated = new ArtifactValidator().validate(artifacts);
+        List<RuntimeConditionsDiagnostic> diagnostics = new ArrayList<>();
+        for (ValidatedRuntimeConditionsArtifact artifact : validated) {
+            diagnostics.addAll(artifact.diagnostics());
+        }
+        if (!diagnostics.isEmpty()) {
+            throw new IllegalArgumentException("extension validation failed:" + diagnosticLines(diagnostics));
+        }
+        System.err.println("runtimeconditions: extension" + (plural ? "s" : "") + " validation passed");
+    }
+
     private static String[] dropFirst(String[] args) {
         String[] result = new String[args.length - 1];
         System.arraycopy(args, 1, result, 0, result.length);
@@ -109,6 +149,39 @@ public final class ProfilerCli {
             }
         }
         return result;
+    }
+
+    private static List<Path> splitCommaPaths(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        String[] parts = value.split(",");
+        List<Path> result = new ArrayList<>();
+        for (String part : parts) {
+            if (!part.isBlank()) {
+                result.add(Path.of(part.trim()));
+            }
+        }
+        return result;
+    }
+
+    private static List<RuntimeConditionsArtifact> javaArtifacts(List<RuntimeConditionsArtifact> artifacts) throws Exception {
+        List<RuntimeConditionsArtifact> result = new ArrayList<>();
+        for (RuntimeConditionsArtifact artifact : artifacts) {
+            String language = manifestLanguage(artifact);
+            if (language.isBlank() || "java".equals(language)) {
+                result.add(artifact);
+            }
+        }
+        return result;
+    }
+
+    private static String manifestLanguage(RuntimeConditionsArtifact artifact) throws Exception {
+        Path sourcePath = artifact.sourcePath();
+        if (sourcePath == null || !Files.isRegularFile(sourcePath)) {
+            return "";
+        }
+        return nullToEmpty(YamlDocument.parse(Files.readString(sourcePath)).scalar("metadata", "language"));
     }
 
     private static void printText(DiscoveryResult result) {
@@ -264,5 +337,17 @@ public final class ProfilerCli {
 
     private static String json(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String diagnosticLines(List<RuntimeConditionsDiagnostic> diagnostics) {
+        StringBuilder out = new StringBuilder();
+        for (RuntimeConditionsDiagnostic diagnostic : diagnostics) {
+            out.append("\n- ");
+            if (!diagnostic.source().isBlank()) {
+                out.append(diagnostic.source()).append(": ");
+            }
+            out.append(diagnostic.message());
+        }
+        return out.toString();
     }
 }
