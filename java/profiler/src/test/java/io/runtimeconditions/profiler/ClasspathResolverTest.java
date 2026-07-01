@@ -2,6 +2,7 @@ package io.runtimeconditions.profiler;
 
 import io.runtimeconditions.profiler.classpath.GradleClasspathResolver;
 import io.runtimeconditions.profiler.classpath.MavenClasspathResolver;
+import io.runtimeconditions.profiler.command.CommandResult;
 import io.runtimeconditions.profiler.command.CommandRunner;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,7 +36,7 @@ public final class ClasspathResolverTest {
                     .orElseThrow()
                     .substring("-Dmdep.outputFile=".length());
             Files.writeString(Path.of(outputPath), dependency.toString());
-            return new CommandRunner.Result(0, "", "");
+            return new CommandResult(0, "", "");
         });
 
         List<Path> entries = new MavenClasspathResolver(runner).resolve(root, List.of(module));
@@ -53,7 +54,7 @@ public final class ClasspathResolverTest {
         Files.createFile(root.resolve("gradlew"));
         Path dependency = Files.createTempFile("runtimeconditions-gradle-dependency", ".jar");
 
-        FakeRunner runner = new FakeRunner((command, workingDirectory) -> new CommandRunner.Result(
+        FakeRunner runner = new FakeRunner((command, workingDirectory) -> new CommandResult(
                 0,
                 "ignored\nRCP_CLASSPATH=" + dependency + java.io.File.pathSeparator + module.resolve("build/resources/main") + "\n",
                 ""));
@@ -86,7 +87,7 @@ public final class ClasspathResolverTest {
     }
 
     private interface FakeAction {
-        CommandRunner.Result run(List<String> command, Path workingDirectory) throws IOException;
+        CommandResult run(List<String> command, Path workingDirectory) throws IOException;
     }
 
     private static final class FakeRunner implements CommandRunner {
@@ -98,7 +99,7 @@ public final class ClasspathResolverTest {
         }
 
         @Override
-        public CommandRunner.Result run(List<String> command, Path workingDirectory) throws IOException {
+        public CommandResult run(List<String> command, Path workingDirectory) throws IOException {
             commands.add(List.copyOf(command));
             return action.run(command, workingDirectory);
         }

@@ -7,6 +7,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Checks a binding manifest against the vocabulary of its resolved extension
+ * set. The transitive extension-definition closure is resolved first so that
+ * each referenced kind, interface type, and field maps to exactly one
+ * definition across the full dependency set.
+ */
 final class ManifestVocabularyValidator {
     void validate(
             ValidatedRuntimeConditionsArtifact artifact,

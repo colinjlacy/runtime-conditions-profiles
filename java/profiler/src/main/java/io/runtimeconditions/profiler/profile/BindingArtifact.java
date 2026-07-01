@@ -7,6 +7,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Wraps a validated binding artifact and exposes its Java manifest as
+ * call-identity lookups, used to match source method calls to the binding's
+ * declarations and options.
+ */
 final class BindingArtifact {
     private final ValidatedRuntimeConditionsArtifact artifact;
 

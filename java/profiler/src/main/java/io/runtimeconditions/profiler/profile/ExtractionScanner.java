@@ -33,6 +33,13 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
+/**
+ * Walks the resolved Java ASTs and emits Runtime Conditions from declarative
+ * binding calls. Runs in two passes: the collect pass first indexes schema
+ * classes and string constants (which a condition may reference before they
+ * appear in source, or from another file), then the extract pass matches
+ * method calls against binding declarations to build conditions.
+ */
 final class ExtractionScanner extends TreePathScanner<Void, Void> {
     private final List<BindingArtifact> bindings;
     private final ProfileOptions options;

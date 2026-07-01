@@ -14,6 +14,12 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Validates that a binding manifest's declarations, options, and constants
+ * actually exist in the package's Java sources. Uses lightweight regex parsing
+ * rather than a full compile so authoring can be checked without a resolved
+ * classpath.
+ */
 final class SourceInspector {
     private static final Pattern JAVA_PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([A-Za-z_][A-Za-z0-9_.]*)\\s*;");
     private static final Pattern JAVA_METHOD = Pattern.compile("(?m)\\bpublic\\s+static\\s+(?:<[^>]+>\\s+)?[A-Za-z0-9_.$<>\\[\\]?]+\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(([^)]*)\\)");

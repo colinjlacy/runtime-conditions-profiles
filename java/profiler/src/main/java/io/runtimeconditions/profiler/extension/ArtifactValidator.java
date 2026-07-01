@@ -17,6 +17,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Validates discovered artifacts before extraction can use them. Per-artifact
+ * checks (manifest shape, extension definition, id matching) run first, then
+ * cross-artifact checks over the whole set delegate vocabulary and Java-source
+ * validation to {@link ManifestVocabularyValidator} and {@link SourceInspector}.
+ */
 public final class ArtifactValidator {
     private static final String API_VERSION = "runtimeconditions.io/v1alpha1";
     private static final String EXTENSION_KIND = "RuntimeConditionsExtensionDefinition";

@@ -1,10 +1,11 @@
 package io.runtimeconditions.demos.requestlogger;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -12,6 +13,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class RequestLoggerHttp {
     static {
@@ -23,29 +26,65 @@ public final class RequestLoggerHttp {
 
     public static void main(String[] args) throws IOException {
         int port = Integer.parseInt(envOrDefault("PORT", "8080"));
-        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-        server.createContext("/ready", RequestLoggerHttp::readinessHandler);
-        server.createContext("/demo", RequestLoggerHttp::demoHandler);
-        server.start();
-        System.out.println("request-logger Java demo listening on :" + port);
+        ExecutorService workers = Executors.newCachedThreadPool();
+        try (ServerSocket server = new ServerSocket(port)) {
+            System.out.println("request-logger Java demo listening on :" + port);
+            while (true) {
+                Socket socket = server.accept();
+                workers.submit(() -> handleConnection(socket));
+            }
+        }
     }
 
-    private static void readinessHandler(HttpExchange exchange) throws IOException {
+    private static void handleConnection(Socket socket) {
+        try (socket) {
+            socket.setSoTimeout(5_000);
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            String requestLine = reader.readLine();
+            if (requestLine == null || requestLine.isBlank()) {
+                return;
+            }
+            String header;
+            while ((header = reader.readLine()) != null && !header.isEmpty()) {
+                // Drain request headers; the demo endpoints only route on the path.
+            }
+
+            String[] parts = requestLine.split(" ");
+            String path = parts.length > 1 ? parts[1] : "/";
+            int query = path.indexOf('?');
+            if (query >= 0) {
+                path = path.substring(0, query);
+            }
+
+            OutputStream out = socket.getOutputStream();
+            switch (path) {
+                case "/ready" -> readinessHandler(out);
+                case "/demo" -> demoHandler(out);
+                default -> respond(out, 404, "Not Found", "text/plain", "not found\n".getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (IOException e) {
+            System.err.println("request handling failed: " + e.getMessage());
+        }
+    }
+
+    private static void readinessHandler(OutputStream out) throws IOException {
         String todos = statusString(checkTodosApi());
         String cache = statusString(checkRedis());
         if (!"ok".equals(todos) || !"ok".equals(cache)) {
-            write(exchange, 503, "One or more dependencies are not healthy: todosApi=" + todos + ", cache=" + cache);
+            writeJson(out, 503, "Service Unavailable",
+                    "One or more dependencies are not healthy: todosApi=" + todos + ", cache=" + cache);
             return;
         }
-        exchange.sendResponseHeaders(204, -1);
-        exchange.close();
+        respond(out, 204, "No Content", null, new byte[0]);
     }
 
-    private static void demoHandler(HttpExchange exchange) throws IOException {
+    private static void demoHandler(OutputStream out) throws IOException {
         String todos = statusString(checkTodosApi());
         String cache = statusString(checkRedis());
-        int status = "ok".equals(todos) && "ok".equals(cache) ? 200 : 500;
-        write(exchange, status, "{\"todosApi\":\"" + todos + "\",\"cache\":\"" + cache + "\"}\n");
+        boolean healthy = "ok".equals(todos) && "ok".equals(cache);
+        writeJson(out, healthy ? 200 : 500, healthy ? "OK" : "Internal Server Error",
+                "{\"todosApi\":\"" + todos + "\",\"cache\":\"" + cache + "\"}\n");
     }
 
     private static Exception checkTodosApi() {
@@ -118,13 +157,24 @@ public final class RequestLoggerHttp {
         return "error";
     }
 
-    private static void write(HttpExchange exchange, int status, String body) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().set("Content-Type", "application/json");
-        exchange.sendResponseHeaders(status, bytes.length);
-        try (OutputStream out = exchange.getResponseBody()) {
-            out.write(bytes);
+    private static void writeJson(OutputStream out, int status, String reason, String body) throws IOException {
+        respond(out, status, reason, "application/json", body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void respond(OutputStream out, int status, String reason, String contentType, byte[] body)
+            throws IOException {
+        StringBuilder headers = new StringBuilder();
+        headers.append("HTTP/1.1 ").append(status).append(' ').append(reason).append("\r\n");
+        if (contentType != null) {
+            headers.append("Content-Type: ").append(contentType).append("\r\n");
         }
+        headers.append("Content-Length: ").append(body.length).append("\r\n");
+        headers.append("Connection: close\r\n\r\n");
+        out.write(headers.toString().getBytes(StandardCharsets.US_ASCII));
+        if (body.length > 0) {
+            out.write(body);
+        }
+        out.flush();
     }
 
     private static String trimTrailingSlash(String value) {

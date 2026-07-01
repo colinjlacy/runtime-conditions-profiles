@@ -19,6 +19,12 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
+/**
+ * Orchestrates profile generation: discovers validated binding artifacts,
+ * parses the project's Java sources with the JDK compiler (running analyze()
+ * so resolved types are available for schema inference), then runs the
+ * two-pass extraction scanner and validates the emitted profile.
+ */
 public final class ProfileExtractor {
     public Map<String, Object> extract(Path projectRoot, ProfileOptions options) throws IOException {
         DiscoveryResult discovery = new ProjectDiscovery().discover(projectRoot, options.discoveryOptions());

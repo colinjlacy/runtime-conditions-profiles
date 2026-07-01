@@ -22,6 +22,12 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
+/**
+ * Pre-indexes every AST node to its resolved Element and TypeMirror during a
+ * single scan. The compiler's Trees API only resolves nodes via a TreePath,
+ * so caching the results here lets the extractor look them up cheaply by node
+ * and tolerate nodes that fail to resolve (e.g. incomplete classpaths).
+ */
 final class SemanticModel extends TreePathScanner<Void, Void> {
     private final Trees trees;
     private final Map<Tree, Element> elements = new IdentityHashMap<>();

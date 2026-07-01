@@ -1,5 +1,6 @@
 package io.runtimeconditions.profiler.classpath;
 
+import io.runtimeconditions.profiler.command.CommandResult;
 import io.runtimeconditions.profiler.command.CommandRunner;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,7 +34,7 @@ public final class GradleClasspathResolver implements ClasspathResolver {
         command.add("runtimeConditionsClasspath");
 
         try {
-            CommandRunner.Result result = commandRunner.run(command, root);
+            CommandResult result = commandRunner.run(command, root);
             if (result.exitCode() != 0) {
                 throw new IOException("Gradle classpath resolution failed with exit code "
                         + result.exitCode()

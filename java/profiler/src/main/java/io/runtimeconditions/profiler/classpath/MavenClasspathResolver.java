@@ -1,5 +1,6 @@
 package io.runtimeconditions.profiler.classpath;
 
+import io.runtimeconditions.profiler.command.CommandResult;
 import io.runtimeconditions.profiler.command.CommandRunner;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -49,7 +50,7 @@ public final class MavenClasspathResolver implements ClasspathResolver {
         command.add("dependency:build-classpath");
 
         try {
-            CommandRunner.Result result = commandRunner.run(command, project);
+            CommandResult result = commandRunner.run(command, project);
             if (result.exitCode() != 0) {
                 throw new IOException("Maven classpath resolution failed for "
                         + project
