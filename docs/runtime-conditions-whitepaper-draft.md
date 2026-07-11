@@ -1,86 +1,56 @@
 # Runtime Conditions Profiles: Portable Runtime Requirements for Cloud-Native and AI-Native Workloads
 
-## Status
-
-Working draft for review.
-
-This document is a white paper source draft. It is intentionally broader than the Runtime Conditions Profile specification. The specification defines the profile format and extension model; this paper explains the problem space, use cases, tooling model, platform impact, and ecosystem opportunities around that specification.
-
----
-
 # 1. Executive Summary
 
-Cloud-native platforms have become increasingly capable at provisioning infrastructure, exposing reusable services, enforcing policy, and automating deployment. Yet applications still lack a portable, machine-readable way to declare the runtime capabilities they require. Data stores, APIs, queues, model-serving accelerators, and configuration inputs are often scattered across source code, environment variables, deployment manifests, IaC tools, service catalog entries, tickets, and human memory.
+Cloud-native platforms can provision infrastructure, expose reusable services, enforce policy, and automate deployment, but workload runtime requirements are still scattered across code, catalogs, and conversations. The result is a recurring handoff problem: developers know what the application needs, and platform teams know what the platform can provide, but neither side has a common reference point to drive the conversation.
 
-Runtime Conditions Profiles address that gap. A Runtime Conditions Profile declares the external runtime integrations required by one application workload. It gives application code, platform automation, policy systems, catalogs, AI agents, and review workflows a shared contract for reasoning about runtime requirements before deployment:
+A Runtime Conditions Profile is a portable, machine-readable declaration of the external runtime integrations required by one workload. It gives developers, platform teams, policy systems, catalogs, agents, and automation a shared contract for reasoning about runtime requirements before deployment.
 
-- Profiles describe demand.
-- Platforms decide fulfillment.
-- Generators can derive profiles from source code and package metadata.
-- Validators can check profile structure, extension vocabulary, and semantic rules.
-- Adapters can map valid profile demands to platform capabilities, provider APIs, catalog entries, policy checks, and deployment outputs.
-
-Runtime Conditions Profiles do not provision infrastructure by themselves. The profile is a data contract. Its value comes from the tools and communities that consume it: generators, validators, platform adapters, and the broader ecosystem integrations built around them.
-
-The current specification keeps the core small. The profile format defines the document envelope, comprised of:
-
-- workload identity
-- extension declarations
-- essential metadata
-- list of conditions that must be met
-- a minimal condition object shape
-
-Extensions define concrete vocabulary for conditions such as `api`, `cache`, `datastore`, environment variable mappings, and other domain-specific capabilities.
-
-This approach supports a practical cloud-native workflow:
-
-1. Developers declare runtime integrations inside code, or import SDKs, such as cloud provider or SaaS API SDKs, that publish their own condition metadata.
-2. Language-native generators inspect source code and resolved packages without executing workload code.
-3. Generated profiles list workload runtime conditions and the extensions required to interpret them, including SDK-based conditions.
-4. Validators resolve and validate extension definitions and reject unresolved or conflicting vocabulary.
-5. Platform adapters fulfill the profile against the target environment.
-
-For platform engineering, this creates a clean contract between application intent and platform capability. For CNCF ecosystems, it offers a portable dependency representation that can interoperate with projects such as Score, Radius, Crossplane, Backstage, and policy engines. For Agentic Ops, it gives operations agents structured runtime context for inspecting demand, identifying gaps, and validating fulfillment. For agent development, the same model can describe the runtime dependencies of MCP servers, model-serving applications, and agent harnesses.
-
----
-
-# 2. Platform Personas and Stakeholder Context
-
-The CNCF Platforms White Paper defines a platform for cloud-native computing as an integrated collection of capabilities presented according to the needs of its users. Related TAG App Delivery writing on Platform as a Product emphasizes that platforms serve multiple personas: builders, enablers, consumers, end-users, and service providers.
-
-Runtime Conditions Profiles matter because each of these personas sees runtime dependencies from a different angle.
-
-| Persona | What They Need | How Runtime Conditions Help |
-| --- | --- | --- |
-| Platform builders | A stable way to expose capabilities without hard-coding every application path. | Profiles provide a demand-side contract that platform components can consume without owning application source analysis. |
-| Platform enablers | A way to help teams onboard applications and compose platform capabilities. | Profiles reveal which runtime integrations a workload needs and whether the platform can satisfy them. |
-| Platform consumers | A way to express application needs without becoming infrastructure experts. | Developers declare runtime integrations inside code or use SDKs that publish metadata. |
-| End-users | Reliable applications that reach production safely. | Profile-aware validation can catch missing dependencies, incompatible APIs, or unsatisfied runtime requirements before rollout. |
-| Service providers | A way to integrate offerings into platform workflows and developer tools. | Providers can publish extension vocabulary and package manifests so SDK usage can generate portable Conditions. |
-
-Composable platforms depend on loose coupling, but loose coupling does not eliminate the need for contracts. A platform may compose CI/CD, catalogs, policy systems, and security controls, and deployment tools from many sets of tools. Runtime Conditions Profiles give those components a shared way to talk about application runtime demand.
-
-```mermaid
-flowchart LR
-  Developer["Platform consumer\nwrites application code"] --> Profile["Runtime Conditions Profile\nportable demand"]
-  Provider["Service provider\nextension and SDK metadata"] --> Profile
-  Profile --> Enabler["Platform enabler\nonboarding and golden paths"]
-  Profile --> Builder["Platform builder\ncapability matching"]
-  Builder --> EndUser["End-user\nreliable application outcome"]
-  Enabler --> EndUser
+```yaml
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsProfile
+metadata:
+  name: checkout-service
+workload:
+  uri: https://github.com/example-org/checkout-service
+  version: v1.2.3
+extensions:
+  - https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  - https://runtimeconditions.io/extensions/env-configuration/v1alpha1/runtimeconditions.extension.yaml
+conditions:
+  - name: request-cache
+    kind: cache
+    interface:
+      type: key_value
+      engine: redis
+    configuration:
+      env:
+        - property: url
+          name: REDIS_URL
 ```
 
-This framing is important: Runtime Conditions is a contract that helps platform participants coordinate across code, catalogs, policy, automation, and provider systems.
+This compact profile captures the core idea. The workload needs a Redis-compatible cache and can consume it through `REDIS_URL`. The profile declares that demand. The platform decides how to fulfill it.
+
+Runtime Conditions Profiles should be auto-generated wherever possible, turning workload behavior and declared integrations into a repeatable delivery artifact. Automating the creation of the profile ensures that the resulting Conditions list, and any downstream platform resource provisioning, are tied directly to the needs of the source code.
+
+This contract improves the software delivery lifecycle by moving dependency review earlier in the process. Runtime declarations can originate in code or SDK metadata, CI can validate the generated artifact, and platform teams can evaluate support before choosing fulfillment. Policy and security checks can also run before final manifests, while operations agents gain validated requirements to reason from instead of piecing together intent from documentation and deployment fragments.
+
+| Persona | Benefit |
+| --- | --- |
+| Application developers | Declare runtime needs without becoming platform implementation experts. |
+| Platform teams | Receive a concrete demand document before choosing fulfillment. |
+| Security and policy teams | Evaluate workload intent earlier in the delivery flow. |
+| Service providers | Publish extension vocabulary and SDK metadata for adoption through platform workflows. |
 
 ---
 
-# 3. The Problem: Runtime Dependencies Are Still Implicit
+# 2. The Problem: Runtime Requirements Lack a Shared Contract
 
-Deploying a service can feel like navigating a minefield. The “just deploy it” mindset often leads to failures because critical dependencies like databases, caches, or properly configured tooling are overlooked. Even when teams recognize the need for these components, they may lack awareness of the specific deployment requirements.
+Deploying a service can feel like navigating a minefield. The “just deploy it” mindset often leads to failures because critical dependencies like databases, caches, or properly configured tooling are overlooked. Even when teams recognize the need for these components, they may lack awareness of the specific deployment requirements or overlook mismatched environment variables.
 
-Meanwhile, Platform teams cannot reliably know what an app needs without inspecting source code. Developers may not know how to express requirements in a platform-native way. Policy systems often see final deployment artifacts, not the application-level demand that produced them. AI agents and automation harnesses see fragments: a README, a chart, a source file, a catalog entry, or a CI pipeline step.
+Meanwhile, platform teams cannot reliably know what an app needs without inspecting source code, and developers may not know how to express requirements in a platform-native way. Policy systems often see final deployment artifacts, not the application-level demand that produced them. AI agents and automation harnesses see fragments: a README, a chart, a source file, or a catalog entry.
 
-This creates a gap between what an application needs and what the platform can safely provide. Service catalogs help, but they usually describe the supply side first: available APIs, service owners, provider capabilities, and catalog metadata. That is necessary, but it is not the same as a workload saying, "I require this API operation, this cache interface, these configuration inputs, and this model-serving capability." When the workload-demand side is absent, automation can pass catalog lookup but fail later in a pipeline step - resource provisioning, policy setting, or in the actual running deployment.
+This creates a gap between what an application needs and what the platform can safely provide. Service catalogs help, but they describe the supply side first: available APIs, service owners, provider capabilities, and catalog metadata. That is necessary, but it is not the same as a workload saying, "I require this API operation, this cache interface, these configuration inputs, and this model-serving capability." When the workload-demand side is absent, automation can pass catalog lookup but fail in a later pipeline step - resource provisioning, policy setting, or in the actual running deployment.
 
 The result is a recurring pattern:
 
@@ -88,7 +58,7 @@ The result is a recurring pattern:
 - Dependencies are visible somewhere, but not in a clear portable contract.
 - Platform automation cannot determine whether all dependencies can be fulfilled.
 - Review and policy happen late.
-- Application onboarding requires bespoke coordination.
+- Application onboarding may revert to bespoke coordination.
 
 Runtime Conditions Profiles make this demand explicit.
 
@@ -97,22 +67,22 @@ flowchart TD
   Source["Source code"] --> Hidden["Implicit runtime requirements"]
   Env["Environment variables"] --> Hidden
   Catalog["Service catalogs"] --> Supply["Platform supply"]
-  Toolinh["Platform automation tools"] --> Fulfillment["Platform fulfillment"]
+  Tools["Platform automation tools"] --> Fulfillment["Platform fulfillment"]
   Tickets["Tickets and docs"] --> Hidden
   Hidden --> Risk["Late failures, manual coordination,\nand incomplete automation"]
   Supply --> Risk
   Fulfillment --> Risk
 ```
 
-This paper's core claim is that cloud-native delivery needs a portable demand-side document that can be generated, validated, extended, and consumed by platform systems.
+This paper's claim is that cloud-native delivery needs a portable demand-side document that can be generated, validated, extended, and consumed by platform systems.
 
 ---
 
-# 4. The Core Idea: Demand and Fulfillment Are Separate
+# 3. The Core Model: Demand Before Fulfillment
 
-The core tenet of the Runtime Conditions Profile's role in the SDLC outer loop is the separation of demand from fulfillment.
+The core model is the separation of demand from fulfillment.
 
-In practical terms, source code uses integrations, a generator emits a profile containing requirements and environment variable names, and an adapter fulfills the profile. The profile does not contain service URLs, datastore hostnames, credentials, cloud account choices, or cluster topology.
+In practical terms, source code uses integrations, a generator emits a profile containing requirements, and an adapter fulfills the profile. The profile does not contain service URLs, datastore hostnames, credentials, cloud account choices, or cluster topology.
 
 In platform terms:
 
@@ -136,11 +106,9 @@ This boundary establishes credibility early:
 - The profile can be validated independently from any one target platform.
 - The profile can be fulfilled differently across local development, staging, production, regulated environments, and multiple clouds.
 
-The profile is "only YAML" in the same way many cloud-native contracts are "only YAML." The power comes from agreement, validation, and tool behavior around that data.
-
 ---
 
-# 5. What Is a Runtime Conditions Profile?
+# 4. What a Profile Looks Like
 
 A Runtime Conditions Profile declares the external runtime integrations required by one application workload.
 
@@ -178,6 +146,18 @@ conditions:
     interface:
       type: relational
       engine: postgres
+    configuration:
+      env:
+        - property: hostname
+          name: DB_HOST
+        - property: port
+          name: DB_PORT
+        - property: database
+          name: DB_DATABASE
+        - property: username
+          name: DB_USERNAME
+        - property: password
+          name: DB_PASSWORD
 ```
 
 Each Condition represents one external runtime dependency requirement. The core Condition shape owns only the common structure:
@@ -191,11 +171,11 @@ conditions:
       type: extension-defined-interface-type
 ```
 
-The core specification owns the object model. Extensions own concrete values for `kind`, `interface.type`, additional Condition fields, additional interface fields, field values, and JSON Schema validation.
+Extensions own concrete values for `kind`, `interface.type`, additional Condition fields, additional interface fields, field values, and JSON Schema validation.
 
-The current first-party examples use two extensions:
+The current first-party tooling provides two extensions:
 
-- Common Integrations defines common integration kinds and interface types such as `api`, `datastore`, `cache`, `http`, `relational`, `document`, and `key_value`.
+- Common Integrations defines common integration kinds, such as `api`, `datastore`, and `cache`,  and their respective interface types.
 - Environment Configuration defines workload configuration inputs such as environment variable names, sensitive inputs, required/optional inputs, and alternatives like `REDIS_URL`, versus `REDIS_HOST` plus `REDIS_PORT`.
 
 Profile validation happens in layers:
@@ -218,11 +198,11 @@ flowchart TD
   Schemas --> Valid["Extension-resolved and semantic profile"]
 ```
 
-The profile must not contain secret values, protected data, personal data, customer data, or concrete target-environment values. It can name configuration inputs the workload expects, such as `POSTGRES_PASSWORD` or `TODOS_API_URL`, but the values for those inputs are supplied by platform fulfillment.
+The profile must not contain secret values, protected data, personal data, customer data, or concrete target-environment values. It can name configuration inputs the workload expects, such as `DB_PASSWORD` or `TODOS_API_URL`, but the values for those inputs are supplied by platform fulfillment.
 
 ---
 
-# 6. Why Extensions Matter
+# 5. Extensions Scale the Model
 
 Runtime Conditions Profiles avoid putting every possible integration vocabulary into the core specification. The core defines a stable envelope structure for defining Conditions, while extensions define the practical vocabulary that real workloads need.
 
@@ -232,11 +212,11 @@ An extension is best understood as a vocabulary package. It provides a place to 
 - the interfaces those Conditions expose
 - the fields that make those interfaces useful
 - the portable values those fields can carry
-- the schemas enable automated validation
+- the schemas that enable automated validation
 
-This ownership model keeps shared meaning intact. A base extension can introduce common concepts such as APIs, datastores, and caches. A later extension can build on those concepts by declaring a dependency and adding its own scoped vocabulary, rather than copying the original definitions into a second place.
+This ownership model keeps shared meaning intact by allowing extensions to form a hierarchy. This allows extensions to act as building blocks, creating composable vocabulary.
 
-This makes extension composition possible. A base extension can introduce common vocabulary:
+A base extension can introduce a foundational profile structure:
 
 ```yaml
 spec:
@@ -254,7 +234,7 @@ spec:
       targetKind: cache
 ```
 
-An additive extension can then build on that vocabulary without copying it:
+An additive extension can then build on that foundation without copying it:
 
 ```yaml
 spec:
@@ -297,29 +277,19 @@ Possible extension families include:
 
 ---
 
-# 7. Tooling Model: From Workload Signals to Validated Profile
+# 6. Tooling Model: From Workload Signals to Validated Profile
 
 At a high level, a practical automated workflow can be summarized as:
 
-1. A workload's source code integrates with external resources.
+1. A workload's source code establishes integrations with external resources.
 2. A generator emits a profile that includes requirements and environment variable names, not target values.
 3. An adapter fulfills the profile.
 
-Generators can use different signals depending on their purpose. Some may analyze source code and package metadata. Others may observe runtime behavior, such as syscall or network activity in a local development environment. Others may be driven by explicit authoring workflows or organization-specific tools. The important output is not the generator technique; it is a valid Runtime Conditions Profile that downstream systems can trust.
+Generators can use different signals depending on their purpose. Some may analyze source code and package metadata. Others may observe runtime behavior, such as syscall or network activity in a local development environment. Others may be driven by explicit authoring workflows or organization-specific tools. The important aspect is not the generator technique; it is a valid Runtime Conditions Profile that downstream systems can trust.
 
-The first-party generator path starts from the workload's language-native project model - package manager metadata, build tool configuration, source sets, import resolution, and dependency overrides. That path inspects resolved packages and artifacts that can contribute source-level declarations, SDK mappings, or production library mappings. 
+First-party AST-based tooling uses lightweight, no-op library code so developers can declare integration dependencies directly in source. The generator parses those declarations, maps them to extension-owned vocabulary, and emits the corresponding Conditions into the generated profile. The declaration code does not provision anything by itself; it gives tooling a reliable source-level signal that can be validated and carried forward.
 
-First-party tooling recognizes three package-adjacent artifacts:
-
-| File | Purpose |
-| --- | --- |
-| `runtimeconditions.extension.yaml` | Defines extension vocabulary and validation schemas. |
-| `runtimeconditions.bindings.yaml` | Maps declarative helper APIs to extension-owned Condition vocabulary. |
-| `runtimeconditions.package.yaml` | Maps SDK or production library APIs to extension-owned Condition vocabulary. |
-
-Binding and package manifests do not define vocabulary. They map language package symbols to vocabulary that is already defined by extension YAML.
-
-Across generator styles, the core flow is intentionally small:
+Regardless of the generator's approach, the core flow is intentionally small:
 
 ```mermaid
 flowchart TD
@@ -331,23 +301,21 @@ flowchart TD
   Adapter --> Fulfillment["Platform fulfillment"]
 ```
 
-The code-based first-party generators avoid executing workload code. They may use package managers or build tools to resolve metadata when that is normal for the target language ecosystem, but extraction comes from source and package metadata. Other generator approaches can make different tradeoffs, including runtime observation, as long as they produce profiles that satisfy the core structure, extension resolution, and validation expectations.
-
-This gives software supply chains an additional artifact that can fit naturally other steps in a standard CI pipeline.
+This gives software supply chains a workflow that can fit naturally alongside other steps in a standard CI pipeline.
 
 ---
 
-# 8. Use Cases
+# 7. Use Cases
 
 Runtime Conditions Profiles are useful wherever runtime demand needs to be explicit before platform fulfillment.
 
-## 8.1 Platform Self-Service and Golden Paths
+## 7.1 Platform Self-Service and Golden Paths
 
 Golden paths are easier to automate when the platform can read what the workload needs. A profile can declare that an application requires a relational datastore, an HTTP API, and a cache. The platform can then match those Conditions to supported capabilities, select implementation defaults, enforce environment policies, and bind the right configuration inputs.
 
 This keeps developers focused on application intent while leaving fulfillment to platform-owned workflows.
 
-## 8.2 Pre-Deployment Contract Validation
+## 7.2 Pre-Deployment Contract Validation
 
 A representative platform flow can validate APIs before deployment: an API Condition can declare an operation such as `GET /todos/{id}` and an expected response shape. An adapter can compare that requirement to a catalog OpenAPI document before rendering workload resources.
 
@@ -360,7 +328,7 @@ This pattern generalizes to:
 
 The earlier the profile is generated, the earlier these checks can run.
 
-## 8.3 Service Catalog and API Catalog Integration
+## 7.3 Service Catalog and API Catalog Integration
 
 Service catalogs commonly describe providers, owners, APIs, and operational metadata. Runtime Conditions Profiles can add the workload-demand side.
 
@@ -368,19 +336,13 @@ A catalog may know that `todos-api` exists. A profile can say that a workload re
 
 This is different from treating the catalog as the profile. Catalogs describe available or known services. Profiles describe what this workload requires.
 
-## 8.4 SDK and Framework-Provided Dependency Discovery
+## 7.4 SDK and Framework-Provided Dependency Discovery
 
 Many workloads access integrations through SDKs rather than explicit platform declarations. SDK authors can package Runtime Conditions metadata so workloads that import those SDKs can generate accurate profiles without adding application-specific configuration files.
 
-For example, an object-store SDK package can ship:
+Frameworks can provide the same signal at a higher level. A web framework, workflow engine, or agent framework could expose common integration points such as service clients, queue consumers, or model endpoints in a Runtime Conditions manifest that generators can translate into workload-level Conditions. This lets framework-mediated dependencies appear in the profile without forcing every application team to describe them by hand, or crack open the framework's source code to identify each dependency.
 
-- a `runtimeconditions.package.yaml` manifest
-- a reference to an extension definition
-- language-specific mappings from SDK calls to Conditions
-
-When a workload calls a mapped SDK method, the generator can emit an `aws.object_store` or equivalent Condition. It should not emit runtime bucket names, credentials, account identifiers, or customer data. The package metadata describes workload requirements, not discovered deployment state.
-
-## 8.5 AI-Native Workloads
+## 7.5 AI-Native Workloads
 
 AI-native applications often combine tool endpoints, retrieval systems, model-serving infrastructure, and coordination services. Runtime Conditions Profiles can give those workloads a bounded representation of runtime requirements.
 
@@ -392,9 +354,9 @@ Examples:
 - Multi-agent systems can declare shared state stores, coordination services, and event buses.
 - Model-serving applications can declare model artifact storage, accelerator requirements, and minimum GPU memory.
 
-Just as with any vocabulary definition, accelerator and memory requirements should be expressed through extension-defined runtime capability vocabulary. A profile may declare that a workload requires an accelerator-compatible serving environment with enough memory for a model class, including expected server libraries such as Nvidia's CUDA, when applicable. It should not dictate a node name, cloud instance type, cluster topology, or exact device binding.
+Just as with any vocabulary definition, accelerator and memory requirements should be expressed through extension-defined runtime capability vocabulary. A profile may declare that a workload requires an accelerator-compatible serving environment with enough memory for a model class, as well as expected server libraries such as Nvidia's CUDA, as needed.
 
-## 8.6 Agentic Ops
+## 7.6 Agentic Ops
 
 For Agentic Ops, the value is operational. A standardized profile format, explicit extension resolution, and validation give operations agents a common language for interpreting workload demand and platform fulfillment. Instead of inferring dependencies from unstructured documentation or final deployment output, an agent can reason over validated Conditions, identify gaps in platform automation, and in some cases propose or generate the missing fulfillment path.
 
@@ -406,21 +368,21 @@ With that common language in place, an operations agent can:
 - validate that deployment changes satisfy declared demand
 - reason across source, catalogs, policy, and provider systems using a shared contract
 
-## 8.7 Policy, Compliance, and Auditability
+## 7.7 Policy, Compliance, and Auditability
 
 Profiles give policy systems such as OPA and Kyverno a demand-side artifact to evaluate before platform fulfillment is complete. A downstream platform can check that a production datastore requirement uses an approved extension, that sensitive configuration inputs will be satisfied through approved secret mechanisms, that API dependencies reference catalog-backed providers, or that accelerator requests comply with quota and environment policy. The result is not policy embedded in the profile; it is better policy input before resources are rendered or applied.
 
-The same declared service-to-service communication can inform security automation. If Profile A declares that its workload calls Service B through a specific HTTP operation, a platform adapter can use that demand to generate a least-privilege network policy, such as a CiliumNetworkPolicy that permits only the declared L7 method and path. That turns application-level dependency knowledge into security resources that are usually hand-authored, guessed from traffic, or omitted entirely.
+The same declared service-to-service communication can inform security automation. If a Checkout Service profile declares that its workload calls the Shopping Cart Service through HTTP `GET /cart/{id}`, a platform adapter can use that demand to generate a least-privilege network policy, such as a CiliumNetworkPolicy that permits only the declared L7 method and path. That turns application-level dependency knowledge into security resources that are usually hand-authored, inferred from traffic post-deployment, or omitted entirely.
 
 The profile itself does not enforce policy or create security resources. It gives downstream platforms enough structured context to verify compliance and automate safer defaults.
 
-## 8.8 Dependency Inventory and Migration Planning
+## 7.8 Dependency Inventory and Migration Planning
 
 Organizations often need to answer questions such as:
 
 - Which workloads require Redis?
 - Which workloads use a deprecated API operation?
-- Which services expect `POSTGRES_PASSWORD` as an environment variable?
+- Which services expect `DB_PASSWORD` as an environment variable?
 - Which workloads rely on an SDK-owned integration?
 - Which AI workloads require a vector store or GPU-backed serving?
 
@@ -428,11 +390,11 @@ Generated profiles create an inventory that is directly tied to application dema
 
 ---
 
-# 9. Impact on Platform Engineering
+# 8. Impact on Platform Engineering
 
-Runtime Conditions Profiles align with Platform as a Product thinking because they clarify the contract between platform consumers and platform teams.
+Runtime Conditions Profiles align with Platform as a Product thinking by clarifying the contract between platform consumers and platform teams.
 
-Even when a platform has mature automation, the handoff between developers and platform teams often still becomes manual or verbal at some point. A developer knows the source code. A platform engineer knows the available capabilities and fulfillment rules. Between those two views, the shared artifact is often a ticket, a conversation, a README, or a deployment failure. The source code is concrete, but it is not usually written in a way that platform automation can interpret directly.
+Even when a platform has mature automation, the handoff between developers and platform teams often still becomes manual or verbal at some point. A developer knows the source code. A platform engineer knows the available capabilities and fulfillment rules. Between those two views, the shared artifact is often a ticket, a conversation, a README, or a deployment failure.
 
 Runtime Conditions Profiles give that handoff a common reference document.
 
@@ -463,15 +425,15 @@ This can improve platform work in several ways:
 - Platform teams can change fulfillment implementations without changing application demand.
 - Providers can integrate through extensions instead of one-off documentation.
 
-Even platforms that are early in their automation journey can benefit from this. A team that still relies on verbal handoffs can use a profile as the common language between developers and platform engineers. The value is similar to what OpenAPI brought to API producers and consumers - a standardized document that provides a reference for discussions.
+Even platforms that are early in their automation journey can benefit from have a concrete point of reference. A team that still relies on verbal handoffs can use a profile as the common language between developers and platform engineers. The value is similar to what OpenAPI brought to API producers and consumers - a standardized document that provides a starting point for platform adoption discussions.
 
 ---
 
-# 10. Impact on CNCF and Adjacent Ecosystems
+# 9. Impact on CNCF and Adjacent Ecosystems
 
 Runtime Conditions Profiles are an integration contract that can help CNCF and cloud-native projects cooperate more cleanly around workload demand.
 
-## 10.1 Score
+## 9.1 Score
 
 Score already has an environment-agnostic workload specification with an open-ended `resources` section for dependencies needed by the workload. The Score specification says resources can be anything and that implementations resolve resources by name, type, or other metadata.
 
@@ -479,13 +441,13 @@ Runtime Conditions can fit cleanly into that open-ended `resources` field. A Sco
 
 This is one of the clearest adoption points because Score is already centered on workload dependencies while leaving implementation resolution to Score implementations.
 
-## 10.2 Radius
+## 9.2 Radius
 
 Radius describes applications and dependencies while operators define environments, infrastructure, and policies. Its application graph and recipes map well to the demand/fulfillment split.
 
 Runtime Conditions Profiles could provide a source-derived demand artifact that Radius environments and recipes can consume. Radius can then remain focused on application deployment, environments, recipes, and graph management.
 
-## 10.3 Crossplane, Kratix, and Provider Control Planes
+## 9.3 Crossplane, Kratix, and Provider Control Planes
 
 Crossplane, Kratix, and similar provider-oriented systems expose platform capabilities through APIs, compositions, promises, or internal workflows.
 
@@ -497,15 +459,15 @@ Runtime Conditions Profiles can act as input to adapters that translate workload
 
 The profile does not need to know which provider system is used.
 
-## 10.4 Backstage and Service Catalogs
+## 9.4 Backstage and Service Catalogs
 
 Backstage and other catalog systems can benefit from workload demand metadata. Profiles can enrich catalog views with declared dependencies, expected environment variables, required API operations, and extension identifiers.
 
 This can help catalogs move beyond provider inventory into application dependency intelligence, building a Backstage inventory that describes both sides of an integration, rather than high-level integration mapping that can go stale if not manually maintained.
 
-## 10.5 OpenAPI and API Catalogs
+## 9.5 OpenAPI and API Catalogs
 
-API Conditions, in declaring HTTP methods and required operations, can rbe programmatically mapped to OpenAPI catalog entries. That gives adapters enough information to validate API compatibility before deployment.
+API Conditions, in declaring HTTP methods and required operations, can be programmatically mapped to OpenAPI catalog entries. That gives adapters enough information to validate API compatibility before deployment.
 
 This pattern can support contract-first platform workflows where:
 
@@ -516,13 +478,13 @@ This pattern can support contract-first platform workflows where:
 
 Extensions can extend to other API types as well, such as GraphQL and gRPC integrations. As long as the upstream need can be declared in a structured way, the profile can support the application-specific declarations, and the downstream provider can be identified through service catalog lookups.
 
-## 10.6 OPA, Kuverno, and Other Policy Engines
+## 9.6 OPA, Kyverno, and Other Policy Engines
 
 Policy engines such as admission controllers, CI policy checks, and governance workflows can use profiles as earlier input.
 
 Instead of waiting for a Kubernetes manifest, a policy system can evaluate whether the declared runtime demand is allowed, complete, and fulfillable for a target environment.
 
-## 10.7 OpenTofu, Pulumi, and Other IaC Tools
+## 9.7 OpenTofu, Pulumi, and Other IaC Tools
 
 IaC tools remain important for fulfillment. Runtime Conditions Profiles can inform which IaC modules, recipes, compositions, or provider workflows should be invoked, but they should not become provider-specific IaC documents themselves.
 
@@ -530,7 +492,7 @@ That distinction keeps profiles portable while allowing target platforms to use 
 
 ---
 
-# 11. Recommendations
+# 10. Recommendations
 
 ## For Application Developers
 
@@ -566,7 +528,7 @@ Evaluate where Runtime Conditions data can be imported, exported, validated, or 
 
 ---
 
-# 12. Appendices
+# 11. Appendices
 
 ## Appendix A: Glossary
 
@@ -578,8 +540,6 @@ Evaluate where Runtime Conditions data can be imported, exported, validated, or 
 | Generator | A language-native tool that emits profiles from source code and package metadata. |
 | Validator | A tool that checks structure, extension resolution, vocabulary ownership, and semantic schemas. |
 | Adapter | A platform-specific component that maps valid profile demand to platform fulfillment. |
-| Demand | What the workload requires. |
-| Fulfillment | How a platform satisfies the requirement in a concrete environment. |
 
 ## Appendix B: Core Profile Summary
 
@@ -612,17 +572,7 @@ Extension-defined vocabulary includes:
 - field values
 - JSON Schema validation schemas
 
-## Appendix C: Package Artifact Summary
-
-| Artifact | Role |
-| --- | --- |
-| `runtimeconditions.extension.yaml` | Defines vocabulary and schemas. |
-| `runtimeconditions.bindings.yaml` | Maps declarative helper APIs to extension vocabulary. |
-| `runtimeconditions.package.yaml` | Maps SDK or production library APIs to extension vocabulary. |
-
-Published packages should ship extension definitions next to manifests when following first-party tooling conventions. Override paths are mainly for vendored layouts, local development, and fixtures.
-
-## Appendix D: Language Profiler Parity Checklist
+## Appendix C: Language Profiler Parity Checklist
 
 A first-party language profiler should:
 
@@ -636,7 +586,7 @@ A first-party language profiler should:
 - include authoring fixtures, profile generation fixtures, and golden outputs
 - generate request logger profile parity for the language implementation
 
-## Appendix E: Source Material and References
+## Appendix D: Source Material and References
 
 Draft source material reviewed during preparation:
 
@@ -656,6 +606,3 @@ External references:
 - [CNCF Platform Engineering Maturity Model](https://tag-app-delivery.cncf.io/whitepapers/platform-eng-maturity-model/)
 - [Platform as a Product: Understanding the Personas](https://tag-app-delivery.cncf.io/blog/paap-personas/)
 - [Demystifying Composability on Platforms](https://tag-app-delivery.cncf.io/blog/composable/)
-- [Agentic AI Foundation](https://aaif.io/)
-- [Score specification reference](https://docs.score.dev/docs/score-specification/score-spec-reference/)
-- [Radius](https://radapp.io/)
