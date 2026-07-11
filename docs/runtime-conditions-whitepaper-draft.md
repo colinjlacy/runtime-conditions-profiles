@@ -50,7 +50,7 @@ Deploying a service can feel like navigating a minefield. The â€œjust deploy itâ
 
 Meanwhile, platform teams cannot reliably know what an app needs without inspecting source code, and developers may not know how to express requirements in a platform-native way. Policy systems often see final deployment artifacts, not the application-level demand that produced them. AI agents and automation harnesses see fragments: a README, a chart, a source file, or a catalog entry.
 
-This creates a gap between what an application needs and what the platform can safely provide. Service catalogs help, but they describe the supply side first: available APIs, service owners, provider capabilities, and catalog metadata. That is necessary, but it is not the same as a workload saying, "I require this API operation, this cache interface, these configuration inputs, and this model-serving capability." When the workload-demand side is absent, automation can pass catalog lookup but fail in a later pipeline step - resource provisioning, policy setting, or in the actual running deployment.
+This creates a gap between what an application needs and what the platform can safely provide. Service catalogs help, but they describe the supply side first: available APIs, service owners, provider capabilities, and catalog metadata. That is necessary, but it is not the same as a workload saying, "I require this API operation, this cache interface, these configuration inputs, and this model-serving capability." When the workload-demand side is absent, automation can pass catalog lookup but fail in a later pipeline step - resource provisioning, policy configuration, or deployment.
 
 The result is a recurring pattern:
 
@@ -167,13 +167,13 @@ The first-party extension set includes two foundational extensions:
 - Common Integrations defines common integration kinds, such as `api`, `datastore`, and `cache`, and their respective interface types.
 - Environment Configuration defines workload configuration inputs such as environment variable names, sensitive inputs, required/optional inputs, and alternatives like `REDIS_URL` versus `REDIS_HOST` plus `REDIS_PORT`.
 
-Profile validation starts with core structure, and proceeds to extension resolution, dependency chaining, vocabulary ownership, and extension schemas. This gives tools a way to distinguish malformed documents from structurally valid profiles that use unresolved or semantically invalid vocabulary.
+Profile validation starts with core structure and proceeds to extension resolution, dependency chaining, vocabulary ownership, and extension schemas. This gives tools a way to distinguish malformed documents from structurally valid profiles that use unresolved or semantically invalid vocabulary.
 
 ```mermaid
 flowchart TD
   Profile["Runtime Conditions Profile"] --> Structural["1. Structural validation"]
   Structural --> Resolve["2. Resolve declared extensions"]
-  Resolve --> Dependencies["3. Resolve dependency closure"]
+  Resolve --> Dependencies["3. Resolve dependency chains"]
   Dependencies --> Vocabulary["4. Validate vocabulary ownership"]
   Vocabulary --> Schemas["5. Apply extension schemas"]
   Schemas --> Valid["Extension-resolved and semantic profile"]
@@ -195,9 +195,9 @@ An extension is best understood as a vocabulary package. It provides a place to 
 - the portable values those fields can carry
 - the schemas that enable automated validation
 
-This ownership model keeps shared meaning intact by allowing extensions to form a hierarchy. This allows extensions to act as building blocks, creating composable vocabulary.
+This ownership model keeps shared meaning intact by allowing extensions to form a hierarchy. This encourages extensions to act as building blocks, creating composable vocabulary hierarchies.
 
-A base extension can introduce a foundational profile structure:
+For example, a base extension can introduce a foundation:
 
 ```yaml
 spec:
@@ -321,7 +321,7 @@ This is different from treating the catalog as the profile. Catalogs describe av
 
 Many workloads access integrations through SDKs rather than explicit platform declarations. SDK authors can package Runtime Conditions metadata so workloads that import those SDKs can generate accurate profiles without adding application-specific configuration files.
 
-Frameworks can provide the same signal at a higher level. A web framework, workflow engine, or agent framework could expose common integration points such as service clients, queue consumers, or model endpoints in a Runtime Conditions manifest that generators can translate into workload-level Conditions. This lets framework-mediated dependencies appear in the profile without forcing every application team to describe them by hand, or crack open the framework's source code to identify each dependency.
+Frameworks can provide the same signal at a higher level. A web framework, workflow engine, or agent framework could expose common integration points such as service clients, queue consumers, or model endpoints in a Runtime Conditions manifest that generators can translate into workload-level Conditions. This lets framework-mediated dependencies appear in the profile without forcing every application team to describe them by hand, or inspect the framework's source code to identify each dependency.
 
 ## 7.5 AI-Native Workloads
 
@@ -343,7 +343,7 @@ For Agentic Ops, the value is operational. A standardized profile format, explic
 
 ## 7.7 Policy, Compliance, and Auditability
 
-Profiles give policy systems such as OPA and Kyverno a demand-side artifact to evaluate before platform fulfillment is complete. A downstream platform can check approved extensions, secret mechanisms, catalog-backed API providers, and accelerator policy before resources are rendered or applied.
+Profiles give policy systems such as OPA and Kyverno a demand-side artifact to evaluate before platform fulfillment is complete. A downstream platform can check that approved extensions, secret mechanisms, catalog-backed API providers, and accelerator policies are used before resources are rendered or applied.
 
 The same declared service-to-service communication can inform security automation. If a Checkout Service profile declares that its workload calls the Shopping Cart Service through HTTP `GET /cart/{id}`, a platform adapter can use that demand to generate a least-privilege network policy, such as a CiliumNetworkPolicy that permits only the declared L7 method and path. That turns application-level dependency knowledge into security resources that are usually hand-authored, inferred from traffic post-deployment, or omitted entirely.
 
