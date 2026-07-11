@@ -106,6 +106,22 @@ The current Java profiler slice implements Maven, Gradle, and source-only projec
 
 Java profile extraction uses Java-native parsing and symbol analysis. The current declarative binding extractor handles ordinary imported declaration classes, wildcard imports, static imports, fully qualified declaration calls, enum constants, cross-file string constants, class literals such as `Todo.class`, schema classes in separate source files, nested option calls, Maven and Gradle source sets, and multi-module source discovery. Overloaded-method disambiguation beyond the manifest-declared method name, richer generic schema modeling, and SDK/runtime package extraction are future work.
 
+## 3.3 Python
+
+The implemented Python path uses `pyproject.toml`, explicit package paths, and Python source/package directories. It resolves local package paths from `tool.runtimeconditions.package-paths`, optional uv path sources, Poetry path dependencies, and direct local references where present. It then inspects only the resolved project and package roots for Runtime Conditions artifacts.
+
+The Python profiler currently implements source extraction and profile generation from declarative `RuntimeConditionsBinding` Python calls. It handles ordinary imports, aliased imports, wildcard imports, fully qualified calls, enum-like constants, cross-file string constants, nested option calls, type/class arguments, schema classes in separate source files, unused imported extension packages, dependency closure validation, and generated profile validation.
+
+The Python profiler supports repository-local package-root manifests:
+
+```text
+runtimeconditions.bindings.yaml
+runtimeconditions.package.yaml
+runtimeconditions.extension.yaml
+```
+
+SDK/runtime package extraction and wheel-installed metadata discovery beyond resolved source/package roots are future work.
+
 ---
 
 # 4. Go Demo Walkthrough

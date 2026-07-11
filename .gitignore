@@ -13,3 +13,5 @@ traffic
 
 kubeconfig
 /tofu
+**/*/.venv/
+**/*/.pytest_cache/

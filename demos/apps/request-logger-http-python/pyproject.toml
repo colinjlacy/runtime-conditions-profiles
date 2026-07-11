@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "request-logger-http-python"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.runtimeconditions]
+package-paths = [
+  "../../../extensions/common-integrations/python",
+  "../../../extensions/env-configuration/python",
+]
+
+[tool.uv.sources]
+runtimeconditions-common-integrations = { path = "../../../extensions/common-integrations/python" }
+runtimeconditions-env-configuration = { path = "../../../extensions/env-configuration/python" }
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

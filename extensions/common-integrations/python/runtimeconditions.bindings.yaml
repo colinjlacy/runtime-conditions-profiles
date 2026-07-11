@@ -1,0 +1,129 @@
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsBinding
+
+metadata:
+  extension: https://runtimeconditions.io/extensions/common-integrations/v1alpha1/runtimeconditions.extension.yaml
+  extensionDefinition: ../common-integrations-v1alpha1.yaml
+  language: python
+
+python:
+  package: runtimeconditions_common_integrations
+
+  constants:
+    Datastore.Engine.POSTGRES: postgres
+    Datastore.Engine.MYSQL: mysql
+    Datastore.Engine.MARIADB: mariadb
+    Datastore.Engine.SQLSERVER: sqlserver
+    Datastore.Engine.ORACLE: oracle
+    Datastore.Engine.SQLITE: sqlite
+    Datastore.Engine.MONGODB: mongodb
+    Datastore.Engine.COUCHBASE: couchbase
+    Cache.Engine.REDIS: redis
+    Cache.Engine.MEMCACHED: memcached
+
+  declarations:
+    - class: Api
+      function: declare
+      nameArg: 0
+      kind: api
+      interfaceType: http
+      options:
+        - class: Api
+          function: spec
+          target: interface.spec
+          stringArgs:
+            format: 0
+            uri: 1
+            version: 2
+        - class: Http
+          function: get
+          target: interface.operations[]
+          method: GET
+          stringArgs:
+            path: 0
+          options: &schema_options
+            - class: Http
+              function: request
+              target: requestBodySchema
+              classArg: 0
+            - class: Http
+              function: response
+              target: responseSchema
+              classArg: 0
+        - class: Http
+          function: head
+          target: interface.operations[]
+          method: HEAD
+          stringArgs:
+            path: 0
+          options: *schema_options
+        - class: Http
+          function: post
+          target: interface.operations[]
+          method: POST
+          stringArgs:
+            path: 0
+          options: *schema_options
+        - class: Http
+          function: put
+          target: interface.operations[]
+          method: PUT
+          stringArgs:
+            path: 0
+          options: *schema_options
+        - class: Http
+          function: patch
+          target: interface.operations[]
+          method: PATCH
+          stringArgs:
+            path: 0
+          options: *schema_options
+        - class: Http
+          function: delete
+          target: interface.operations[]
+          method: DELETE
+          stringArgs:
+            path: 0
+          options: *schema_options
+        - class: Http
+          function: options
+          target: interface.operations[]
+          method: OPTIONS
+          stringArgs:
+            path: 0
+          options: *schema_options
+        - class: Http
+          function: trace
+          target: interface.operations[]
+          method: TRACE
+          stringArgs:
+            path: 0
+          options: *schema_options
+
+    - class: Datastore
+      function: declare
+      nameArg: 0
+      kind: datastore
+      options:
+        - class: Datastore
+          function: relational
+          target: interface.type
+          value: relational
+          enumArg: 0
+        - class: Datastore
+          function: document
+          target: interface.type
+          value: document
+          enumArg: 0
+
+    - class: Cache
+      function: declare
+      nameArg: 0
+      kind: cache
+      options:
+        - class: Cache
+          function: key_value
+          target: interface.type
+          value: key_value
+          enumArg: 0
+

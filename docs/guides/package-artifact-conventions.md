@@ -333,13 +333,52 @@ At least one of `java.declarations` or `java.options` must be present.
 
 ---
 
-# 6. Language Placement Conventions
+# 6. Python Section
+
+The Python declaration package convention mirrors the Java binding shape while using Python package and class ownership for static declaration helpers.
+
+```yaml
+python:
+  package: runtimeconditions_common_integrations
+
+  constants:
+    Cache.Engine.REDIS: redis
+
+  declarations:
+    - class: Cache
+      function: declare
+      nameArg: 0
+      kind: cache
+      options:
+        - class: Cache
+          function: key_value
+          target: interface.type
+          value: key_value
+          enumArg: 0
+```
+
+Fields:
+
+| Field | Required | Description |
+| ----- | -------- | ----------- |
+| `python.package` | YES | Python package that contains the declaration classes |
+| `python.constants` | NO | Enum-like constants or class attributes mapped to extension values |
+| `python.declarations` | NO | Static helper mappings that emit Conditions |
+| `python.options` | NO | Static helper mappings that augment compatible declarations |
+
+Python declaration and option entries reuse the same manifest terms as Java where possible: `class`, `function`, `nameArg`, `stringArgs`, `target`, `value`, `enumArg`, `classArg`, and nested `options`.
+
+At least one of `python.declarations` or `python.options` must be present.
+
+---
+
+# 7. Language Placement Conventions
 
 Generators SHOULD use language-native package resolution and then check conventional manifest locations. They SHOULD NOT recursively scan dependency trees looking for arbitrary manifest files.
 
-The current Go generator supports extraction. The Java profiler supports Maven/Gradle-aware artifact discovery, Java binding validation, profile generation from declarative `RuntimeConditionsBinding` Java calls, generated profile validation, and executable JAR packaging. SDK/runtime package extraction is intentionally deferred. The Python, JavaScript, and TypeScript paths below describe the intended package-resolution convention for future language support.
+The current Go generator supports extraction. The Java profiler supports Maven/Gradle-aware artifact discovery, Java binding validation, profile generation from declarative `RuntimeConditionsBinding` Java calls, generated profile validation, and executable JAR packaging. The Python profiler supports pyproject/path-aware artifact discovery, Python binding validation, profile generation from declarative `RuntimeConditionsBinding` Python calls, and generated profile validation. SDK/runtime package extraction is intentionally deferred. The JavaScript and TypeScript paths below describe the intended package-resolution convention for future language support.
 
-## 6.1 Go
+## 7.1 Go
 
 For a Go import:
 
@@ -356,7 +395,7 @@ The generator resolves the import path to a package directory and checks:
 
 In local development, `go.mod` `replace` directives can resolve a module to a local directory.
 
-## 6.2 Java
+## 7.2 Java
 
 For a Java import:
 
@@ -390,25 +429,25 @@ runtimeconditions.extension.yaml
 
 For source-layout declaration packages in this repository, the current manifest is placed next to the Java source root for the extension package. Published Java packages should use the `META-INF/runtimeconditions/` resource layout.
 
-## 6.3 Python
+## 7.3 Python
 
 For Python imports:
 
 ```python
-import boto3
-from vendor_sdk.s3 import Client
+from runtimeconditions_common_integrations import Cache
+from runtimeconditions_env_configuration import EnvConfiguration
 ```
 
-A Python generator should resolve the imported distribution or package directory and check:
+A Python generator should resolve the imported distribution or package directory from the workload's project metadata, package manager configuration, or explicit development package paths. It should then check only those resolved package roots or package directories for:
 
 ```text
 <package directory>/runtimeconditions.bindings.yaml
 <package directory>/runtimeconditions.package.yaml
 ```
 
-For wheels, the manifest should be included as package data in the imported package or distribution metadata.
+The current Python profiler supports repository-local package-root manifests and package paths declared in `tool.runtimeconditions.package-paths`. It also recognizes common local path metadata such as uv path sources and Poetry path dependencies. For published wheels, the manifest should be included as package data in the imported package or distribution metadata.
 
-## 6.4 JavaScript and TypeScript
+## 7.4 JavaScript and TypeScript
 
 For JavaScript or TypeScript imports:
 
@@ -434,7 +473,7 @@ This convention does not require a `package.json` property.
 
 ---
 
-# 7. Extension Definition Relationship
+# 8. Extension Definition Relationship
 
 The manifest's extension identifier must match the extension definition it resolves:
 
@@ -480,7 +519,7 @@ If a manifest emits `configuration`, the resolved extension definition should de
 
 ---
 
-# 8. Safety Rules
+# 9. Safety Rules
 
 Generators MUST treat binding and package manifests as static metadata. They MUST NOT execute package code to discover Conditions.
 
@@ -497,7 +536,7 @@ Generators MAY read literal source values, constants, type names, method names, 
 
 ---
 
-# 9. Compatibility
+# 10. Compatibility
 
 Manifest compatibility is governed by `apiVersion`.
 
