@@ -1,3 +1,17 @@
+# This Repository Is No Longer Active
+
+Runtime Conditions has moved to the
+[`runtimeconditions`](https://github.com/runtimeconditions) GitHub
+organization. This root-level repository is kept only as historical source
+while the project is split into smaller repos for hands-on usability, feedback,
+and possible adoption by a parent project.
+
+Start here: https://runtimeconditions.github.io/
+
+Active repositories now live under: https://github.com/runtimeconditions
+
+---
+
 # Runtime Conditions Profilers
 
 Declare your service's runtime dependencies in code and generate a Runtime Conditions Profile that downstream tools can consume. The Go AST profiler reads first-party extension declaration packages and emits profile YAML for adapters and validators.

@@ -3,6 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, follow" />
+    <meta http-equiv="refresh" content="0; url=https://runtimeconditions.github.io/" />
+    <link rel="canonical" href="https://runtimeconditions.github.io/" />
+    <script>
+      (function () {
+        var oldBase = "/runtime-conditions-profiles/";
+        var oldRoot = "/runtime-conditions-profiles";
+        var path = window.location.pathname;
+        var suffix = path === oldRoot ? "" : path.indexOf(oldBase) === 0 ? path.slice(oldBase.length) : "";
+        window.location.replace("https://runtimeconditions.github.io/" + suffix + window.location.search + window.location.hash);
+      })();
+    </script>
     <title>Code To Profile | Runtime Conditions</title>
     <link rel="stylesheet" href="assets/styles.css" />
   </head>
